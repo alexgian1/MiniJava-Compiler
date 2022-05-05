@@ -1,1 +1,11 @@
 minijava_example/
+syntaxtree/
+visitor/
+
+JavaCharStream*
+JTBToolkit*
+MiniJavaParser*
+minijava-jtb.jj
+ParseException*
+Token*
+*.class
