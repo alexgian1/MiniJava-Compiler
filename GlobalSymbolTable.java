@@ -15,6 +15,13 @@ public class GlobalSymbolTable {
         this.classesSymbolTable.put(className, st);
     }
 
+    public void addClass(String className, String parentName) throws ParseException{
+        if (this.classesSymbolTable.containsKey(className))
+            throw new ParseException("Redefinition of class '" + className + "'");
+        ClassSymbolTable st = new ClassSymbolTable(className, parentName);
+        this.classesSymbolTable.put(className, st);
+    }
+
     public ClassSymbolTable getClassSymbolTable(String className) throws ParseException{
         if (!this.classesSymbolTable.containsKey(className))
             throw new ParseException("Unknown symbol '" + className + "'");

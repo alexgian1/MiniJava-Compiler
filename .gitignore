@@ -1,6 +1,7 @@
 minijava_example/
 syntaxtree/
 visitor/
+minijava-examples-new/
 
 JavaCharStream*
 JTBToolkit*

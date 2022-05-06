@@ -5,6 +5,7 @@ public class SymbolTableVisitor extends GJDepthFirst<String, Void>{
     GlobalSymbolTable symbolTable;
     ClassSymbolTable curClassSymbolTable;
     MethodSymbolTable curMethodSymbolTable;
+    String scope;
 
     SymbolTableVisitor(){
         symbolTable = new GlobalSymbolTable();
@@ -48,6 +49,7 @@ public class SymbolTableVisitor extends GJDepthFirst<String, Void>{
         n.f11.accept(this, argu);
         n.f12.accept(this, argu);
         n.f13.accept(this, argu);
+        scope = "class";
         n.f14.accept(this, argu);
         n.f15.accept(this, argu);
         n.f16.accept(this, argu);
@@ -69,6 +71,7 @@ public class SymbolTableVisitor extends GJDepthFirst<String, Void>{
         symbolTable.addClass(className);
         this.curClassSymbolTable = this.symbolTable.getClassSymbolTable(className);
         n.f2.accept(this, argu);
+        scope = "class";
         n.f3.accept(this, argu);
         n.f4.accept(this, argu);
         n.f5.accept(this, argu);
@@ -88,17 +91,34 @@ public class SymbolTableVisitor extends GJDepthFirst<String, Void>{
     public String visit(ClassExtendsDeclaration n, Void argu) throws Exception {
         n.f0.accept(this, argu);
         String className = n.f1.accept(this, argu);
-        symbolTable.addClass(className);
-        this.curClassSymbolTable = this.symbolTable.getClassSymbolTable(className);
         n.f2.accept(this, argu);
-        n.f3.accept(this, argu);
+        String parentName = n.f3.accept(this, argu);
+        symbolTable.addClass(className, parentName);
+        this.curClassSymbolTable = this.symbolTable.getClassSymbolTable(className);
         n.f4.accept(this, argu);
+        scope = "class";
         n.f5.accept(this, argu);
         n.f6.accept(this, argu);
         n.f7.accept(this, argu);
         return null;
      }
 
+     /**
+      * f0 -> Type()
+      * f1 -> Identifier()
+      * f2 -> ";"
+      */
+    public String visit(VarDeclaration n, Void argu) throws Exception {
+        String type = n.f0.accept(this, argu);
+        String name = n.f1.accept(this, argu);
+        //System.out.println("Got " + type + " " + name + " in scope :" + scope);
+        if (this.scope == "class")
+            this.curClassSymbolTable.addField(name, type);
+        else if (this.scope == "method")
+            this.curMethodSymbolTable.addLocalVariable(name, type);
+        n.f2.accept(this, argu);
+        return null;
+    }
 
         /**
     * f0 -> "public"
@@ -122,9 +142,11 @@ public class SymbolTableVisitor extends GJDepthFirst<String, Void>{
         this.curClassSymbolTable.addMethod(methodName, returnType);
         this.curMethodSymbolTable = this.curClassSymbolTable.getMethodSymbolTable(methodName);
         n.f3.accept(this, argu);
-        n.f4.accept(this, argu);
+        n.f4.accept(this, argu);  //-->Populates the argument map of the method
+        curClassSymbolTable.checkMethodOverwrite(curMethodSymbolTable, symbolTable);
         n.f5.accept(this, argu);
         n.f6.accept(this, argu);
+        scope = "method";
         n.f7.accept(this, argu);
         n.f8.accept(this, argu);
         n.f9.accept(this, argu);
@@ -143,6 +165,7 @@ public class SymbolTableVisitor extends GJDepthFirst<String, Void>{
         String ident = n.f1.accept(this, argu);
         //System.out.println("Method '" + this.curMethodSymbolTable.methodName + "' of class '" + this.curClassSymbolTable.className + "' argument: " + type + " " + ident);
         this.curMethodSymbolTable.addArgument(ident, type);
+        this.curMethodSymbolTable.addLocalVariable(ident, type);
         return null;
     }
 
