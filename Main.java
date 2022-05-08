@@ -22,9 +22,11 @@ public class Main {
             Goal root = parser.Goal();
 
             System.err.println("Program parsed successfully.");
-
-            SymbolTableVisitor eval = new SymbolTableVisitor();
-            root.accept(eval, null);
+            GlobalSymbolTable globalSymbolTable = new GlobalSymbolTable();
+            SymbolTableVisitor eval1 = new SymbolTableVisitor(globalSymbolTable);
+            root.accept(eval1, null);
+            TypeCheckVisitor eval2 = new TypeCheckVisitor(globalSymbolTable);
+            root.accept(eval2, null);
         }
         catch(ParseException ex){
             System.out.println(ex.getMessage());

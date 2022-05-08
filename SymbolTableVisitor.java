@@ -7,8 +7,8 @@ public class SymbolTableVisitor extends GJDepthFirst<String, Void>{
     MethodSymbolTable curMethodSymbolTable;
     String scope;
 
-    SymbolTableVisitor(){
-        symbolTable = new GlobalSymbolTable();
+    SymbolTableVisitor(GlobalSymbolTable globalSymbolTable){
+        this.symbolTable = globalSymbolTable;
     }
 
 
