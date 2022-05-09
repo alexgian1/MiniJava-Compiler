@@ -589,8 +589,8 @@ public class TypeCheckVisitor extends GJDepthFirst<String, Void>{
         n.f0.accept(this, argu);
         n.f1.accept(this, argu);
         n.f2.accept(this, argu);String expressionType = n.f2.accept(this, argu);
-        if (!expressionType.equals("boolean") && !expressionType.equals("int"))
-            throw new ParseException("Print statement can only be used with types 'int' and 'boolean'");
+        if (!expressionType.equals("int"))
+            throw new ParseException("Print statement can only be used with type 'int'");
         n.f3.accept(this, argu);
         n.f4.accept(this, argu);
         return null;
