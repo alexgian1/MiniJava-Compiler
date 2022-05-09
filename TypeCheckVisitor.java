@@ -258,7 +258,8 @@ public class TypeCheckVisitor extends GJDepthFirst<String, Void>{
         n.f2.accept(this, argu);
         //Add integer check
         String indexType = n.f3.accept(this, argu);
-        System.out.println("Boolean array with index type: " + indexType);
+        if (!indexType.equals("int"))
+            throw new ParseException("Array index must be an integer");
         n.f4.accept(this, argu);
         return "boolean[]";
     }
@@ -275,7 +276,9 @@ public class TypeCheckVisitor extends GJDepthFirst<String, Void>{
         n.f1.accept(this, argu);
         n.f2.accept(this, argu);
         //Add integer check
-        n.f3.accept(this, argu);
+        String indexType = n.f3.accept(this, argu);
+        if (!indexType.equals("int"))
+            throw new ParseException("Array index must be an integer");
         n.f4.accept(this, argu);
         return "int[]";
     }
@@ -408,7 +411,7 @@ public class TypeCheckVisitor extends GJDepthFirst<String, Void>{
     */
     public String visit(ArrayLength n, Void argu) throws Exception {
         String type = n.f0.accept(this, argu);
-        if (!type.equals("int[]") || !type.equals("boolean[]"))
+        if (!type.equals("int[]") && !type.equals("boolean[]"))
             throw new ParseException("Invalid use of 'length' (Not an array)");
         n.f1.accept(this, argu);
         n.f2.accept(this, argu);
@@ -483,6 +486,35 @@ public class TypeCheckVisitor extends GJDepthFirst<String, Void>{
         n.f1.accept(this, argu);
         String expressionType = n.f2.accept(this, argu);
         n.f3.accept(this, argu);
+
+        if (!identifierType.equals(expressionType))
+            throw new ParseException("Cannot assign '" + expressionType + "' to '" + identifierType + "'");
+        return null;
+    }
+
+    /**
+    * f0 -> Identifier()
+    * f1 -> "["
+    * f2 -> Expression()
+    * f3 -> "]"
+    * f4 -> "="
+    * f5 -> Expression()
+    * f6 -> ";"
+    */
+    public String visit(ArrayAssignmentStatement n, Void argu) throws Exception {
+        identifierTypeCheck = true;
+        String identifierType = n.f0.accept(this, argu);
+        identifierTypeCheck = false;
+        identifierType = identifierType.replaceAll("\\[\\]", ""); //remove square brackets from identifier
+        
+        n.f1.accept(this, argu);
+        String indexType = n.f2.accept(this, argu);
+        if (!indexType.equals("int"))
+            throw new ParseException("Invalid index type. ('int' required)");
+        n.f3.accept(this, argu);
+        n.f4.accept(this, argu);
+        String expressionType = n.f5.accept(this, argu);
+        n.f6.accept(this, argu);
 
         if (!identifierType.equals(expressionType))
             throw new ParseException("Cannot assign '" + expressionType + "' to '" + identifierType + "'");

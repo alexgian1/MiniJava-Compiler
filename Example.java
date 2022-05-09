@@ -9,10 +9,11 @@ class A {
     boolean[] x;
 
     public int foo(int i, int j, boolean[] a){
-        x = new boolean[100];
+        x = new boolean[i];
         b = new A();
         j = A.foo(i,i,x);
-        x[0] = ((2+3) < 4) && ((3 * 4) < (2 -2));
+        x[j+1] = ((2+3) < 4) && ((3 * 4) < (2 -2));
+        x[j] = a[i];
         x = a;
         return i; 
     }
