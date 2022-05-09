@@ -4,46 +4,51 @@ import visitor.*;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.PrintWriter;
 
 public class Main {
     public static void main(String[] args) throws Exception {
-        if(args.length != 1){
-            System.err.println("Usage: java Main <inputFile>");
+        if(args.length < 1){
+            System.err.println("Usage: java Main <inputFile1> <inputFile2> ...");
             System.exit(1);
         }
 
-
-
         FileInputStream fis = null;
-        try{
-            fis = new FileInputStream(args[0]);
-            MiniJavaParser parser = new MiniJavaParser(fis);
-
-            Goal root = parser.Goal();
-
-            System.err.println("Program parsed successfully.");
-            GlobalSymbolTable globalSymbolTable = new GlobalSymbolTable();
-            SymbolTableVisitor eval1 = new SymbolTableVisitor(globalSymbolTable);
-            root.accept(eval1, null);
-            System.out.println("Symbol table check success.");
-            TypeCheckVisitor eval2 = new TypeCheckVisitor(globalSymbolTable);
-            root.accept(eval2, null);
-            System.out.println("Type check success.");
-        }
-        catch(ParseException ex){
-            System.out.println(ex.getMessage());
-        }
-        catch(FileNotFoundException ex){
-            System.err.println(ex.getMessage());
-        }
-        finally{
+        PrintWriter writer = new PrintWriter("test_results.txt");
+        for(int i = 0; i < args.length; i++){
             try{
-                if(fis != null) fis.close();
+                    fis = new FileInputStream(args[i]);
+                    MiniJavaParser parser = new MiniJavaParser(fis);
+
+                    Goal root = parser.Goal();
+
+                    System.err.println("Program parsed successfully.");
+                    GlobalSymbolTable globalSymbolTable = new GlobalSymbolTable();
+                    SymbolTableVisitor eval1 = new SymbolTableVisitor(globalSymbolTable);
+                    root.accept(eval1, null);
+                    System.out.println("Symbol table check success.");
+                    TypeCheckVisitor eval2 = new TypeCheckVisitor(globalSymbolTable);
+                    root.accept(eval2, null);
+                    System.out.println("Type check success.");
+                    writer.println("Success: " + args[i]);
             }
-            catch(IOException ex){
+            catch(ParseException ex){
+                writer.println("Failed: " + args[i]);
+                System.out.println(ex.getMessage());
+            }
+            catch(FileNotFoundException ex){
                 System.err.println(ex.getMessage());
             }
+            finally{
+                try{
+                    if(fis != null) fis.close();
+                }
+                catch(IOException ex){
+                    System.err.println(ex.getMessage());
+                }
+            }
         }
+        writer.close();
     }
 }
 

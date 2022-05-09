@@ -10,3 +10,4 @@ minijava-jtb.jj
 ParseException*
 Token*
 *.class
+test_results.txt

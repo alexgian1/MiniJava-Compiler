@@ -626,5 +626,3 @@ public class TypeCheckVisitor extends GJDepthFirst<String, Void>{
         return type;
     }
 }
-
-//TODO: ManyClasses
