@@ -123,8 +123,10 @@ public class TypeCheckVisitor extends GJDepthFirst<String, Void>{
     public String visit(MethodDeclaration n, Void argu) throws Exception {
         n.f0.accept(this, argu);
         n.f1.accept(this, argu);
+
         String methodName = n.f2.accept(this, argu);
         this.curMethodSymbolTable = this.curClassSymbolTable.getMethodSymbolTable(methodName);
+        
         n.f3.accept(this, argu);
         n.f4.accept(this, argu);
         n.f5.accept(this, argu);
@@ -138,7 +140,7 @@ public class TypeCheckVisitor extends GJDepthFirst<String, Void>{
             throw new ParseException(expressionType + " does not match the return type of " + 
                                     curClassSymbolTable.getClassName() + "." + curMethodSymbolTable.getMethodName());
         
-        n.f11.accept(this, argu);
+                                    n.f11.accept(this, argu);
         n.f12.accept(this, argu);
         this.curMethodSymbolTable = null;
         return null;
@@ -594,6 +596,25 @@ public class TypeCheckVisitor extends GJDepthFirst<String, Void>{
         n.f3.accept(this, argu);
         n.f4.accept(this, argu);
         return null;
+    }
+
+    /**
+    * f0 -> ArrayType()
+    *       | BooleanType()
+    *       | IntegerType()
+    *       | Identifier()
+    */
+    public String visit(Type n, Void argu) throws Exception {
+
+        String type = n.f0.accept(this, argu);
+
+        if (!type.equals("int") && !type.equals("int[]")
+            && !type.equals("boolean") && !type.equals("boolean[]")
+            && !this.symbolTable.hasClass(type))
+        {
+            throw new ParseException("Unknown type '" + type + "'");
+        }
+        return type;
     }
 }
 

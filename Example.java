@@ -6,7 +6,7 @@ class Example {
 class A {
     int i;
     A b;
-    boolean[] x;
+    boolean[] x; 
 
     public int foo(int i, int j, boolean[] a){
         x = new boolean[i];
@@ -24,6 +24,7 @@ class A {
     }
     public int bar(){ return 1; }
     public boolean test(boolean x) { return x && x; }
+    public A test2() { return new A();}
 }
 
 class B extends A {
