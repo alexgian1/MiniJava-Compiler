@@ -51,9 +51,10 @@ public class MethodSymbolTable {
             String curParentName = curClassSymbolTable.getParentName();
             while (curParentName != null){
                 ClassSymbolTable parentClassSymbolTable = globalSymbolTable.getClassSymbolTable(curParentName);
-                curParentName = parentClassSymbolTable.getClassName();
-                if (parentClassSymbolTable.getFieldsTable().containsKey(identifier))
+                if (parentClassSymbolTable.getFieldsTable().containsKey(identifier)){
                     return parentClassSymbolTable.getFieldsTable().get(identifier);
+                }
+                curParentName = parentClassSymbolTable.getParentName();
             }
         }
         

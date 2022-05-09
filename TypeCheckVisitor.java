@@ -125,7 +125,7 @@ public class TypeCheckVisitor extends GJDepthFirst<String, Void>{
         n.f1.accept(this, argu);
 
         String methodName = n.f2.accept(this, argu);
-        this.curMethodSymbolTable = this.curClassSymbolTable.getMethodSymbolTable(methodName);
+        this.curMethodSymbolTable = this.curClassSymbolTable.getMethodSymbolTable(methodName, symbolTable);
         
         n.f3.accept(this, argu);
         n.f4.accept(this, argu);
@@ -453,7 +453,16 @@ public class TypeCheckVisitor extends GJDepthFirst<String, Void>{
 
         Set<String> requiredArgumentNames = requiredArguments.keySet();
         for (String argument : requiredArgumentNames){
-            if (!requiredArguments.get(argument).equals(argumentTypesToCheck.poll())){
+            String type1 = requiredArguments.get(argument);
+            String type2 = argumentTypesToCheck.poll();
+            if (!type1.equals(type2)){
+                //Check if arguments are derived classes
+                if (symbolTable.hasClass(type1) && symbolTable.hasClass(type2)){
+                    if (symbolTable.isDerived(type2, type1)){
+                        return methodSymbolTable.getReturnType();
+                    }
+                }
+
                 throw new ParseException("Invalid argument types for " + className + "." + methodName);
             }
         }
@@ -618,4 +627,4 @@ public class TypeCheckVisitor extends GJDepthFirst<String, Void>{
     }
 }
 
-//TODO: DerivedCall, ManyClasses, test20, TreeVisitor
+//TODO: ManyClasses
