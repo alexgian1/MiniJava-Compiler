@@ -469,4 +469,23 @@ public class TypeCheckVisitor extends GJDepthFirst<String, Void>{
         System.out.println("Adding in argumnetsToCheck: " + exprType);
         return null;
     }
+
+    /**
+    * f0 -> Identifier()
+    * f1 -> "="
+    * f2 -> Expression()
+    * f3 -> ";"
+    */
+    public String visit(AssignmentStatement n, Void argu) throws Exception {
+        identifierTypeCheck = true;
+        String identifierType = n.f0.accept(this, argu);
+        identifierTypeCheck = false;
+        n.f1.accept(this, argu);
+        String expressionType = n.f2.accept(this, argu);
+        n.f3.accept(this, argu);
+
+        if (!identifierType.equals(expressionType))
+            throw new ParseException("Cannot assign '" + expressionType + "' to '" + identifierType + "'");
+        return null;
+    }
 }

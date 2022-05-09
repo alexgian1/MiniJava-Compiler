@@ -11,8 +11,9 @@ class A {
     public int foo(int i, int j, boolean[] a){
         x = new boolean[100];
         b = new A();
-        b = A.foo(i,i,x);
-        x = ((2+3) < 4) && ((3 * 4) < (2 -2));
+        j = A.foo(i,i,x);
+        x[0] = ((2+3) < 4) && ((3 * 4) < (2 -2));
+        x = a;
         return i; 
     }
     public int bar(){ return 1; }
