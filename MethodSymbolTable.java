@@ -33,4 +33,31 @@ public class MethodSymbolTable {
         
         this.argumentsTable.put(name,type);
     }
+
+    public String getIdentifierType(String identifier, ClassSymbolTable curClassSymbolTable, GlobalSymbolTable globalSymbolTable) throws ParseException{
+        //Search method local variables -> method arguments -> class fields -> parent class fields
+        System.out.println("Searching for identifier: " + identifier);
+
+        if (this.localVariablesTable.containsKey(identifier))
+            return this.localVariablesTable.get(identifier);
+        
+        else if (this.argumentsTable.containsKey(identifier))
+            return this.argumentsTable.get(identifier);
+        
+        else if (curClassSymbolTable.getFieldsTable().containsKey(identifier))
+            return curClassSymbolTable.getFieldsTable().get(identifier);
+        
+        else{
+            String curParentName = curClassSymbolTable.getParentName();
+            while (curParentName != null){
+                ClassSymbolTable parentClassSymbolTable = globalSymbolTable.getClassSymbolTable(curParentName);
+                curParentName = parentClassSymbolTable.getClassName();
+                if (parentClassSymbolTable.getFieldsTable().containsKey(identifier))
+                    return parentClassSymbolTable.getFieldsTable().get(identifier);
+            }
+        }
+        
+        //Identifier not found
+        return null;
+    }
 }

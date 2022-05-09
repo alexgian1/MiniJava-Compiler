@@ -26,6 +26,8 @@ public class ClassSymbolTable {
 
     public String getParentName(){ return this.parentName; }
 
+    public Map<String, String>  getFieldsTable() { return this.fieldsTable;}
+
     public void addField(String fieldName, String type) throws ParseException {
         if (this.fieldsTable.containsKey(fieldName))
             throw new ParseException("Redefinition of field '" + fieldName + "'");

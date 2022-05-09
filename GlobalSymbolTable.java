@@ -27,4 +27,8 @@ public class GlobalSymbolTable {
             throw new ParseException("Unknown symbol '" + className + "'");
         return classesSymbolTable.get(className);
     }
+
+    public boolean hasClass(String className){
+        return this.classesSymbolTable.containsKey(className);
+    }
 }

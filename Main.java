@@ -25,8 +25,10 @@ public class Main {
             GlobalSymbolTable globalSymbolTable = new GlobalSymbolTable();
             SymbolTableVisitor eval1 = new SymbolTableVisitor(globalSymbolTable);
             root.accept(eval1, null);
+            System.out.println("Symbol table check success.");
             TypeCheckVisitor eval2 = new TypeCheckVisitor(globalSymbolTable);
             root.accept(eval2, null);
+            System.out.println("Type check success.");
         }
         catch(ParseException ex){
             System.out.println(ex.getMessage());
