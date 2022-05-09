@@ -85,6 +85,22 @@ public class ClassSymbolTable {
         return methodsTable.get(methodName);
     }
 
+    //Search parent classes too if method not found
+    public MethodSymbolTable getMethodSymbolTable(String methodName, GlobalSymbolTable globalSymbolTable) throws ParseException{
+        if (this.methodsTable.containsKey(methodName))
+            return methodsTable.get(methodName);
+
+        String curParentName = this.parentName;
+        while(curParentName != null){
+            ClassSymbolTable parentClassSymbolTable = globalSymbolTable.getClassSymbolTable(curParentName);
+            if (parentClassSymbolTable.hasMethod(methodName))
+                return parentClassSymbolTable.getMethodSymbolTable(methodName);
+            curParentName = parentClassSymbolTable.getParentName();
+        }
+        
+        throw new ParseException("Unknown symbol '" + methodName + "'");
+    }
+
     public boolean hasMethod(String methodName){
         return this.methodsTable.containsKey(methodName);
     }

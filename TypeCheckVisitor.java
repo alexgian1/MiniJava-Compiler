@@ -132,7 +132,12 @@ public class TypeCheckVisitor extends GJDepthFirst<String, Void>{
         n.f7.accept(this, argu);
         n.f8.accept(this, argu);
         n.f9.accept(this, argu);
-        n.f10.accept(this, argu);
+
+        String expressionType = n.f10.accept(this, argu);
+        if (!expressionType.equals(this.curMethodSymbolTable.getReturnType()))
+            throw new ParseException(expressionType + " does not match the return type of " + 
+                                    curClassSymbolTable.getClassName() + "." + curMethodSymbolTable.getMethodName());
+        
         n.f11.accept(this, argu);
         n.f12.accept(this, argu);
         this.curMethodSymbolTable = null;
@@ -230,6 +235,8 @@ public class TypeCheckVisitor extends GJDepthFirst<String, Void>{
                 throw new ParseException("Unknown identifier '" + identifier + "'");
         }
         System.out.println("Found identifier '" + identifier + "' with type '" + type + "' in " + curClassSymbolTable.getClassName() + "." + curMethodSymbolTable.getMethodName());
+        if (type == "String[]")
+            throw new ParseException("Illegal use of " + curClassSymbolTable.getClassName() + ".main arguments");
         return type;
     }
 
@@ -431,7 +438,7 @@ public class TypeCheckVisitor extends GJDepthFirst<String, Void>{
         ClassSymbolTable classSymbolTable = this.symbolTable.getClassSymbolTable(className);
         n.f1.accept(this, argu);
         String methodName = n.f2.accept(this, argu);
-        MethodSymbolTable methodSymbolTable = classSymbolTable.getMethodSymbolTable(methodName);
+        MethodSymbolTable methodSymbolTable = classSymbolTable.getMethodSymbolTable(methodName, symbolTable);
         n.f3.accept(this, argu);
         this.argumentTypesToCheck.clear();
         n.f4.accept(this, argu);
@@ -439,6 +446,9 @@ public class TypeCheckVisitor extends GJDepthFirst<String, Void>{
 
         //Check if given arguments match the method template
         Map<String, String> requiredArguments = methodSymbolTable.getArgumentSymbolTable();
+        if (requiredArguments.size() != argumentTypesToCheck.size())
+            throw new ParseException("Invalid argument count for " + className + "." + methodName);
+
         Set<String> requiredArgumentNames = requiredArguments.keySet();
         for (String argument : requiredArgumentNames){
             if (!requiredArguments.get(argument).equals(argumentTypesToCheck.poll())){
@@ -487,8 +497,15 @@ public class TypeCheckVisitor extends GJDepthFirst<String, Void>{
         String expressionType = n.f2.accept(this, argu);
         n.f3.accept(this, argu);
 
-        if (!identifierType.equals(expressionType))
+        if (!identifierType.equals(expressionType)){
+            //check if they are derived and base classes
+            if (symbolTable.hasClass(identifierType) && symbolTable.hasClass(expressionType)){
+                if (symbolTable.isDerived(expressionType, identifierType)){
+                    return null;
+                }
+            }
             throw new ParseException("Cannot assign '" + expressionType + "' to '" + identifierType + "'");
+        }
         return null;
     }
 
@@ -520,4 +537,64 @@ public class TypeCheckVisitor extends GJDepthFirst<String, Void>{
             throw new ParseException("Cannot assign '" + expressionType + "' to '" + identifierType + "'");
         return null;
     }
+
+    /**
+    * f0 -> "if"
+    * f1 -> "("
+    * f2 -> Expression()
+    * f3 -> ")"
+    * f4 -> Statement()
+    * f5 -> "else"
+    * f6 -> Statement()
+    */
+    public String visit(IfStatement n, Void argu) throws Exception {
+        n.f0.accept(this, argu);
+        n.f1.accept(this, argu);
+        String expressionType = n.f2.accept(this, argu);
+        if (!expressionType.equals("boolean"))
+            throw new ParseException("'if' condition must be boolean");
+        n.f3.accept(this, argu);
+        n.f4.accept(this, argu);
+        n.f5.accept(this, argu);
+        n.f6.accept(this, argu);
+        return null;
+    }
+    
+    /**
+     * f0 -> "while"
+    * f1 -> "("
+    * f2 -> Expression()
+    * f3 -> ")"
+    * f4 -> Statement()
+    */
+    public String visit(WhileStatement n, Void argu) throws Exception {
+        n.f0.accept(this, argu);
+        n.f1.accept(this, argu);
+        String expressionType = n.f2.accept(this, argu);
+        if (!expressionType.equals("boolean"))
+            throw new ParseException("'while' condition must be boolean");
+        n.f3.accept(this, argu);
+        n.f4.accept(this, argu);
+        return null;
+    }
+
+    /**
+    * f0 -> "System.out.println"
+    * f1 -> "("
+    * f2 -> Expression()
+    * f3 -> ")"
+    * f4 -> ";"
+    */
+    public String visit(PrintStatement n, Void argu) throws Exception {
+        n.f0.accept(this, argu);
+        n.f1.accept(this, argu);
+        n.f2.accept(this, argu);String expressionType = n.f2.accept(this, argu);
+        if (!expressionType.equals("boolean") && !expressionType.equals("int"))
+            throw new ParseException("Print statement can only be used with types 'int' and 'boolean'");
+        n.f3.accept(this, argu);
+        n.f4.accept(this, argu);
+        return null;
+    }
 }
+
+//TODO: DerivedCall, ManyClasses, test20, TreeVisitor

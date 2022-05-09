@@ -13,7 +13,12 @@ class A {
         b = new A();
         j = A.foo(i,i,x);
         x[j+1] = ((2+3) < 4) && ((3 * 4) < (2 -2));
-        x[j] = a[i];
+        while (a[1]){
+            if (this.test(a[0])){
+                x[j] = a[i];
+            }
+            else{}
+        }
         x = a;
         return i; 
     }

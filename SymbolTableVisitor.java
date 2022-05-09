@@ -52,7 +52,7 @@ public class SymbolTableVisitor extends GJDepthFirst<String, Void>{
         n.f13.accept(this, argu);
         this.curClassSymbolTable.addMethod("main", "");
         this.curMethodSymbolTable = this.curClassSymbolTable.getMethodSymbolTable("main");
-        this.curMethodSymbolTable.addArgument(argsIdentifier, "");
+        this.curMethodSymbolTable.addArgument(argsIdentifier, "String[]");
         scope = "method";
         n.f14.accept(this, argu);
         n.f15.accept(this, argu);

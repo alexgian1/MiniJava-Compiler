@@ -31,4 +31,17 @@ public class GlobalSymbolTable {
     public boolean hasClass(String className){
         return this.classesSymbolTable.containsKey(className);
     }
+
+    public boolean isDerived(String derived, String base){
+        ClassSymbolTable derivedClassSymbolTable = this.classesSymbolTable.get(derived);
+        
+        String curParent = derivedClassSymbolTable.getParentName();
+        while (curParent != null){
+            ClassSymbolTable parentClassSymbolTable = this.classesSymbolTable.get(curParent);
+            if (curParent == base) return true;
+            curParent = parentClassSymbolTable.getParentName();
+        }
+
+        return false;
+    }
 }
