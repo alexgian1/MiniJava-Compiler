@@ -9,25 +9,35 @@ public class ClassSymbolTable {
     Map<String, String>  fieldsTable;
     Map<String, MethodSymbolTable>  methodsTable;
 
+    public int fieldsOffset;
+    public int methodsOffset;
+
     public ClassSymbolTable(String className){
         this.className = className;
         this.parentName = null;
         this.fieldsTable = new LinkedHashMap<String, String>();  //varName -> varType
         this.methodsTable = new LinkedHashMap<String, MethodSymbolTable>(); //methodName -> methodSymbolTable
+        
+        this.fieldsOffset = 0;
+        this.methodsOffset = 0;
     }
 
-    public ClassSymbolTable(String className, String parentName){
+    public ClassSymbolTable(String className, String parentName) throws Exception{
         this.className = className;
         this.parentName = parentName;
         this.fieldsTable = new LinkedHashMap<String, String>();  //varName -> varType
         this.methodsTable = new LinkedHashMap<String, MethodSymbolTable>(); //methodName -> methodSymbolTable
+    
+        this.fieldsOffset = 0;
+        this.methodsOffset = 0;
     }
 
     public String getClassName(){ return this.className; }
 
     public String getParentName(){ return this.parentName; }
 
-    public Map<String, String>  getFieldsTable() { return this.fieldsTable;}
+    public Map<String, String>  getFieldsTable() { return this.fieldsTable; }
+    public Map<String, MethodSymbolTable>  getMethodsTable() { return this.methodsTable; }
 
     public void addField(String fieldName, String type) throws Exception {
         if (this.fieldsTable.containsKey(fieldName))
@@ -45,14 +55,16 @@ public class ClassSymbolTable {
         methodsTable.put(methodName, st);
     }
 
-    public void checkMethodOverwrite(MethodSymbolTable methodSymbolTable, GlobalSymbolTable globalSymbolTable) throws Exception{
+    public boolean checkMethodOverwrite(MethodSymbolTable methodSymbolTable, GlobalSymbolTable globalSymbolTable) throws Exception{
         //Check if method overwrites one from a parent class
         String methodName = methodSymbolTable.getMethodName();
         String returnType = methodSymbolTable.getReturnType();
         String curParentName = this.parentName;
+        boolean overwrites = false;
         while(curParentName != null){
             ClassSymbolTable parentClassSymbolTable = globalSymbolTable.getClassSymbolTable(curParentName);
             if (parentClassSymbolTable.hasMethod(methodName)){
+                overwrites = true;
                 MethodSymbolTable parentMethodSymbolTable = parentClassSymbolTable.getMethodSymbolTable(methodName);
                 
                 //Check return types
@@ -78,6 +90,7 @@ public class ClassSymbolTable {
             }
             curParentName = parentClassSymbolTable.getParentName();
         }
+        return overwrites;
     }
 
     public MethodSymbolTable getMethodSymbolTable(String methodName) throws Exception{
@@ -106,4 +119,11 @@ public class ClassSymbolTable {
         return this.methodsTable.containsKey(methodName);
     }
 
+    public void calculateParentOffsets(GlobalSymbolTable globalSymbolTable) throws Exception{
+        if (this.parentName != null){
+            ClassSymbolTable parentSymbolTable = globalSymbolTable.getClassSymbolTable(this.parentName);
+            this.fieldsOffset = parentSymbolTable.fieldsOffset;
+            this.methodsOffset = parentSymbolTable.methodsOffset;
+        }
+    }
 }

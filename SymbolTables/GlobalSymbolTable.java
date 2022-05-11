@@ -4,9 +4,16 @@ import java.util.LinkedHashMap;
 
 public class GlobalSymbolTable {
     Map<String, ClassSymbolTable> classesSymbolTable;
+    String mainClass;
 
     public GlobalSymbolTable(){
         this.classesSymbolTable = new LinkedHashMap<String, ClassSymbolTable>();
+    }
+
+    public void addMainClass(String className){
+        this.mainClass = className;
+        ClassSymbolTable st = new ClassSymbolTable(className);
+        this.classesSymbolTable.put(className, st);
     }
 
     public void addClass(String className) throws Exception{
@@ -44,5 +51,41 @@ public class GlobalSymbolTable {
         }
 
         return false;
+    }
+
+    public void calculateOffsets() throws Exception{
+        for (String className : this.classesSymbolTable.keySet()){
+            if (className == this.mainClass) continue;
+
+            ClassSymbolTable classSymbolTable = this.classesSymbolTable.get(className);
+            classSymbolTable.calculateParentOffsets(this);
+            System.out.println("-----------Class " + className + "-----------");
+
+            //Print fields
+            Map<String, String> fieldsTable = classSymbolTable.getFieldsTable();
+            System.out.println("--Variables---");
+            for (String fieldName : fieldsTable.keySet()){
+                System.out.println(className + "." + fieldName + " : " + classSymbolTable.fieldsOffset);
+                String fieldType = fieldsTable.get(fieldName);
+                if (fieldType == "boolean")
+                    classSymbolTable.fieldsOffset += 1;
+                else if (fieldType == "int")
+                    classSymbolTable.fieldsOffset += 4;
+                else
+                    classSymbolTable.fieldsOffset += 8;     //array or method
+            }
+
+            //Print methods
+            Map<String, MethodSymbolTable> methodsTable = classSymbolTable.getMethodsTable();
+            System.out.println("---Methods---");
+            for (String methodName : methodsTable.keySet()){
+                if (!classSymbolTable.checkMethodOverwrite(methodsTable.get(methodName), this)){
+                    System.out.println(className + "." + methodName + " : " + classSymbolTable.methodsOffset);
+                    classSymbolTable.methodsOffset += 8;
+                }
+            }
+
+            System.out.println();
+        }
     }
 }

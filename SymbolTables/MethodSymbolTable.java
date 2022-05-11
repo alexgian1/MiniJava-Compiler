@@ -37,7 +37,6 @@ public class MethodSymbolTable {
 
     public String getIdentifierType(String identifier, ClassSymbolTable curClassSymbolTable, GlobalSymbolTable globalSymbolTable) throws Exception{
         //Search method local variables -> method arguments -> class fields -> parent class fields
-        System.out.println("Searching for identifier: " + identifier);
 
         if (this.localVariablesTable.containsKey(identifier))
             return this.localVariablesTable.get(identifier);

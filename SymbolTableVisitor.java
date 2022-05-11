@@ -38,7 +38,7 @@ public class SymbolTableVisitor extends GJDepthFirst<String, Void>{
     public String visit(MainClass n, Void argu) throws Exception {
         n.f0.accept(this, argu);
         String className = n.f1.accept(this, argu);
-        symbolTable.addClass(className);
+        symbolTable.addMainClass(className);
         this.curClassSymbolTable = this.symbolTable.getClassSymbolTable(className);
         n.f2.accept(this, argu);
         scope = "class";
@@ -118,7 +118,6 @@ public class SymbolTableVisitor extends GJDepthFirst<String, Void>{
     public String visit(VarDeclaration n, Void argu) throws Exception {
         String type = n.f0.accept(this, argu);
         String name = n.f1.accept(this, argu);
-        //System.out.println("Got " + type + " " + name + " in scope :" + scope);
         if (this.scope == "class")
             this.curClassSymbolTable.addField(name, type);
         else if (this.scope == "method")
@@ -170,7 +169,6 @@ public class SymbolTableVisitor extends GJDepthFirst<String, Void>{
     public String visit(FormalParameter n, Void argu) throws Exception {
         String type = n.f0.accept(this, argu);
         String ident = n.f1.accept(this, argu);
-        //System.out.println("Method '" + this.curMethodSymbolTable.methodName + "' of class '" + this.curClassSymbolTable.className + "' argument: " + type + " " + ident);
         this.curMethodSymbolTable.addArgument(ident, type);
         this.curMethodSymbolTable.addLocalVariable(ident, type);
         return null;

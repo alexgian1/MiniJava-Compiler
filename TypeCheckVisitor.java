@@ -225,11 +225,9 @@ public class TypeCheckVisitor extends GJDepthFirst<String, Void>{
         String identifier = n.f0.toString();
         
         if (this.identifierTypeCheck == false){
-            System.out.println("Type check off for " + identifier);
             return identifier;
         }
         
-        System.out.println("Type check on for " + identifier);
         String type = curMethodSymbolTable.getIdentifierType(identifier, curClassSymbolTable, symbolTable);
         //If identifier is not a variable
         if (type == null){
@@ -239,7 +237,6 @@ public class TypeCheckVisitor extends GJDepthFirst<String, Void>{
             else
                 throw new ParseException("Unknown identifier '" + identifier + "'");
         }
-        System.out.println("Found identifier '" + identifier + "' with type '" + type + "' in " + curClassSymbolTable.getClassName() + "." + curMethodSymbolTable.getMethodName());
         if (type == "String[]")
             throw new ParseException("Illegal use of " + curClassSymbolTable.getClassName() + ".main arguments");
         return type;
@@ -469,7 +466,6 @@ public class TypeCheckVisitor extends GJDepthFirst<String, Void>{
                 throw new ParseException("Invalid argument types for " + className + "." + methodName);
             }
         }
-        System.out.println("Method " + className + "." + methodName + " executed succesfully and returned: " + methodSymbolTable.getReturnType());
         return methodSymbolTable.getReturnType();
     }
 
@@ -480,7 +476,6 @@ public class TypeCheckVisitor extends GJDepthFirst<String, Void>{
    public String visit(ExpressionList n, Void argu) throws Exception {
         String exprType = n.f0.accept(this, argu);
         this.argumentTypesToCheck.add(exprType);
-        System.out.println("Adding in argumnetsToCheck: " + exprType);
         n.f1.accept(this, argu);
         return null;
     }
@@ -493,7 +488,6 @@ public class TypeCheckVisitor extends GJDepthFirst<String, Void>{
         n.f0.accept(this, argu);
         String exprType = n.f1.accept(this, argu);
         this.argumentTypesToCheck.add(exprType);
-        System.out.println("Adding in argumnetsToCheck: " + exprType);
         return null;
     }
 
