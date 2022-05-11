@@ -14,4 +14,4 @@ make
 java Main <inputFile1> <inputFile2> ...
 ```
 
-If the MiniJava compiler type checking is successful, it will print the the field and method offsets for each class in the Standard Output.
+If the MiniJava compiler type checking is successful, it will print the field and method offsets for each class in the Standard Output.
