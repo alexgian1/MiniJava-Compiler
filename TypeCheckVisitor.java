@@ -3,6 +3,9 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 
+import SymbolTables.ClassSymbolTable;
+import SymbolTables.GlobalSymbolTable;
+import SymbolTables.MethodSymbolTable;
 import syntaxtree.*;
 import visitor.*;
 

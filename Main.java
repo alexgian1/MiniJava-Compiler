@@ -6,6 +6,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 
+import SymbolTables.GlobalSymbolTable;
+
 public class Main {
     public static void main(String[] args) throws Exception {
         if(args.length < 1){
@@ -32,12 +34,12 @@ public class Main {
                     System.out.println("Type check success.");
                     writer.println("Success: " + args[i]);
             }
-            catch(ParseException ex){
-                writer.println("Failed: " + args[i]);
-                System.out.println(ex.getMessage());
-            }
             catch(FileNotFoundException ex){
                 System.err.println(ex.getMessage());
+            }
+            catch(Exception ex){
+                writer.println("Failed: " + args[i]);
+                System.out.println(ex.getMessage());
             }
             finally{
                 try{

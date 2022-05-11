@@ -1,3 +1,6 @@
+import SymbolTables.ClassSymbolTable;
+import SymbolTables.GlobalSymbolTable;
+import SymbolTables.MethodSymbolTable;
 import syntaxtree.*;
 import visitor.*;
 
