@@ -34,8 +34,10 @@ public class Main {
                     writer.println("Success: " + args[i]);
 
                     globalSymbolTable.calculateOffsets();
-                    LLVMGeneratingVisitor codeGen = new LLVMGeneratingVisitor(globalSymbolTable);
+                    PrintWriter llvmWriter = new PrintWriter(args[i].substring(0, args[i].length()-5) + ".ll");
+                    LLVMGeneratingVisitor codeGen = new LLVMGeneratingVisitor(globalSymbolTable, llvmWriter);
                     root.accept(codeGen, null);
+                    llvmWriter.close();
             }
             catch(FileNotFoundException ex){
                 System.err.println(ex.getMessage());

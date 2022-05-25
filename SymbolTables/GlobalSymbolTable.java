@@ -3,8 +3,8 @@ import java.util.Map;
 import java.util.LinkedHashMap;
 
 public class GlobalSymbolTable {
-    Map<String, ClassSymbolTable> classesSymbolTable;
-    String mainClass;
+    public Map<String, ClassSymbolTable> classesSymbolTable;
+    public String mainClass;
 
     public GlobalSymbolTable(){
         this.classesSymbolTable = new LinkedHashMap<String, ClassSymbolTable>();

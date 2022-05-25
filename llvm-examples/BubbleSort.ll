@@ -1,7 +1,6 @@
 @.BubbleSort_vtable = global [0 x i8*] []
 @.BBS_vtable = global [4 x i8*] [i8* bitcast (i32 (i8*,i32)* @BBS.Start to i8*), i8* bitcast (i32 (i8*)* @BBS.Sort to i8*), i8* bitcast (i32 (i8*)* @BBS.Print to i8*), i8* bitcast (i32 (i8*,i32)* @BBS.Init to i8*)]
 
-
 declare i8* @calloc(i32, i32)
 declare i32 @printf(i8*, ...)
 declare void @exit(i32)
