@@ -21,18 +21,21 @@ public class Main {
             try{
                     fis = new FileInputStream(args[i]);
                     MiniJavaParser parser = new MiniJavaParser(fis);
-
                     Goal root = parser.Goal();
-
                     System.err.println("Program parsed successfully.");
+
                     GlobalSymbolTable globalSymbolTable = new GlobalSymbolTable();
                     SymbolTableVisitor eval1 = new SymbolTableVisitor(globalSymbolTable);
                     root.accept(eval1, null);
+
                     TypeCheckVisitor eval2 = new TypeCheckVisitor(globalSymbolTable);
                     root.accept(eval2, null);
                     System.out.println("Type check success.");
                     writer.println("Success: " + args[i]);
+
                     globalSymbolTable.calculateOffsets();
+                    LLVMGeneratingVisitor codeGen = new LLVMGeneratingVisitor(globalSymbolTable);
+                    root.accept(codeGen, null);
             }
             catch(FileNotFoundException ex){
                 System.err.println(ex.getMessage());
