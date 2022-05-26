@@ -1,5 +1,7 @@
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
+import java.util.Map;
+import java.util.Set;
 
 import javax.print.DocFlavor.STRING;
 
@@ -21,6 +23,8 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     int ifCount = 1;
     int oobCount = 1;
     int loopCount = 1;
+
+    boolean isInMethod = false;
     
     LLVMGeneratingVisitor(GlobalSymbolTable globalSymbolTable, PrintWriter llvmWriter) throws Exception{
         this.symbolTable = globalSymbolTable;
@@ -36,6 +40,12 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     String newIfLabel() { return "if" + ifCount++; }
     String newOobLabel() { return "oob" + oobCount++; }
     String newLoopLabel() { return "loop" + loopCount++; }
+    void resetCounters() {
+        this.registerCount = 1;
+        this.ifCount = 1;
+        this.oobCount = 1;
+        this.loopCount = 1;
+    }
 
     void defineVTable() throws Exception{
         this.writer.println(this.vtable.definition());
@@ -170,19 +180,31 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         n.f0.accept(this, argu);
         String returnType = JavaToLLVM(n.f1.accept(this, argu));
         String methodName = n.f2.accept(this, argu);
+        this.curMethodSymbolTable = curClassSymbolTable.getMethodSymbolTable(methodName);
         n.f3.accept(this, argu);
         emit("define " + returnType + " @" + curClassSymbolTable.getClassName() + "." + methodName + "(i8* %this");
         n.f4.accept(this, argu);
         emit(") {\n");
+
+        //Store arguments in temp variables
+        Map<String,String> argumentSymbolTable = curMethodSymbolTable.getArgumentSymbolTable();
+        Set<String> arguments = argumentSymbolTable.keySet();
+        for (String argument : arguments){
+            String type = JavaToLLVM(argumentSymbolTable.get(argument));
+            emit("\t%" + argument + " = alloca " + type + "\n");
+            emit("\tstore %." + argument + ", " + type + "* %" + argument + "\n");
+        }
+
         n.f5.accept(this, argu);
         n.f6.accept(this, argu);
-        this.curMethodSymbolTable = curClassSymbolTable.getMethodSymbolTable(methodName);
+        this.isInMethod = true;
         n.f7.accept(this, argu);
         n.f8.accept(this, argu);
         n.f9.accept(this, argu);
         n.f10.accept(this, argu);
         n.f11.accept(this, argu);
         n.f12.accept(this, argu);
+        this.isInMethod = false;
         emit("}\n\n");
         return null;
      }
@@ -195,6 +217,21 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         String type = JavaToLLVM(n.f0.accept(this, argu));
         String identifier = n.f1.accept(this, argu);
         emit(", " + type + " %." + identifier);
+        return null;
+    }
+
+    /**
+    * f0 -> Type()
+    * f1 -> Identifier()
+    * f2 -> ";"
+    */
+    public String visit(VarDeclaration n, Void argu) throws Exception {
+        String type = JavaToLLVM(n.f0.accept(this, argu));
+        String identifier = n.f1.accept(this, argu);
+        n.f2.accept(this, argu);
+        if (isInMethod){
+            emit("\t%" + identifier + " = alloca " + type + "\n\n");
+        }
         return null;
     }
 
@@ -225,6 +262,8 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         switch(type){
             case "boolean": return "i1";
             case "int": return "i32";
+            case "boolean[]": return "i1*";
+            case "int[]": return "i32*";
             default: return "i8*";
         }
     }

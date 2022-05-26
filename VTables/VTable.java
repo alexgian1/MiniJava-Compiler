@@ -50,6 +50,8 @@ public class VTable {
         switch(type){
             case "boolean": return "i1";
             case "int": return "i32";
+            case "boolean[]": return "i1*";
+            case "int[]": return "i32*";
             default: return "i8*";
         }
     }
