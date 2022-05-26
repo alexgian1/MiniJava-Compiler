@@ -1,15 +1,26 @@
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 
+import javax.print.DocFlavor.STRING;
+
+import SymbolTables.ClassSymbolTable;
 import SymbolTables.GlobalSymbolTable;
+import SymbolTables.MethodSymbolTable;
 import VTables.VTable;
 import syntaxtree.*;
 import visitor.*;
 
 public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     GlobalSymbolTable symbolTable;
+    ClassSymbolTable curClassSymbolTable;
+    MethodSymbolTable curMethodSymbolTable;
     VTable vtable;
     PrintWriter writer;
+
+    int registerCount = 1;
+    int ifCount = 1;
+    int oobCount = 1;
+    int loopCount = 1;
     
     LLVMGeneratingVisitor(GlobalSymbolTable globalSymbolTable, PrintWriter llvmWriter) throws Exception{
         this.symbolTable = globalSymbolTable;
@@ -19,6 +30,12 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         this.defineVTable();
         this.defineHelperMethods();
     }
+
+    void emit(String data) { this.writer.print(data); }
+    String newTemp() { return "%_" + registerCount++; }
+    String newIfLabel() { return "if" + ifCount++; }
+    String newOobLabel() { return "oob" + oobCount++; }
+    String newLoopLabel() { return "loop" + loopCount++; }
 
     void defineVTable() throws Exception{
         this.writer.println(this.vtable.definition());
@@ -76,7 +93,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     n.f5.accept(this, argu);
     n.f6.accept(this, argu);
     n.f7.accept(this, argu);
-    writer.println("\ndefine i32 @main() {");
+    emit("\ndefine i32 @main() {\n");
     n.f8.accept(this, argu);
     n.f9.accept(this, argu);
     n.f10.accept(this, argu);
@@ -85,10 +102,130 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     n.f13.accept(this, argu);
     n.f14.accept(this, argu);
     n.f15.accept(this, argu);
-    writer.println("    ret i32 0");
+    emit("    ret i32 0\n");
     n.f16.accept(this, argu);
-    writer.println("}");
+    emit("}\n\n");
     n.f17.accept(this, argu);
     return null;
  }
+
+ /**
+    * f0 -> "class"
+    * f1 -> Identifier()
+    * f2 -> "{"
+    * f3 -> ( VarDeclaration() )*
+    * f4 -> ( MethodDeclaration() )*
+    * f5 -> "}"
+    */
+    public String visit(ClassDeclaration n, Void argu) throws Exception {
+        n.f0.accept(this, argu);
+        String className = n.f1.accept(this, argu);
+        n.f2.accept(this, argu);
+        this.curClassSymbolTable = symbolTable.getClassSymbolTable(className);
+        n.f3.accept(this, argu);
+        n.f4.accept(this, argu);
+        n.f5.accept(this, argu);
+        return null;
+     }
+  
+     /**
+      * f0 -> "class"
+      * f1 -> Identifier()
+      * f2 -> "extends"
+      * f3 -> Identifier()
+      * f4 -> "{"
+      * f5 -> ( VarDeclaration() )*
+      * f6 -> ( MethodDeclaration() )*
+      * f7 -> "}"
+      */
+     public String visit(ClassExtendsDeclaration n, Void argu) throws Exception {
+        n.f0.accept(this, argu);
+        String className = n.f1.accept(this, argu);
+        n.f2.accept(this, argu);
+        n.f3.accept(this, argu);
+        n.f4.accept(this, argu);
+        this.curClassSymbolTable = symbolTable.getClassSymbolTable(className);
+        n.f5.accept(this, argu);
+        n.f6.accept(this, argu);
+        n.f7.accept(this, argu);
+        return null;
+     }
+
+ /**
+    * f0 -> "public"
+    * f1 -> Type()
+    * f2 -> Identifier()
+    * f3 -> "("
+    * f4 -> ( FormalParameterList() )?
+    * f5 -> ")"
+    * f6 -> "{"
+    * f7 -> ( VarDeclaration() )*
+    * f8 -> ( Statement() )*
+    * f9 -> "return"
+    * f10 -> Expression()
+    * f11 -> ";"
+    * f12 -> "}"
+    */
+    public String visit(MethodDeclaration n, Void argu) throws Exception {
+        n.f0.accept(this, argu);
+        String returnType = JavaToLLVM(n.f1.accept(this, argu));
+        String methodName = n.f2.accept(this, argu);
+        n.f3.accept(this, argu);
+        emit("define " + returnType + " @" + curClassSymbolTable.getClassName() + "." + methodName + "(i8* %this");
+        n.f4.accept(this, argu);
+        emit(") {\n");
+        n.f5.accept(this, argu);
+        n.f6.accept(this, argu);
+        this.curMethodSymbolTable = curClassSymbolTable.getMethodSymbolTable(methodName);
+        n.f7.accept(this, argu);
+        n.f8.accept(this, argu);
+        n.f9.accept(this, argu);
+        n.f10.accept(this, argu);
+        n.f11.accept(this, argu);
+        n.f12.accept(this, argu);
+        emit("}\n\n");
+        return null;
+     }
+
+        /**
+        * f0 -> Type()
+        * f1 -> Identifier()
+        */
+    public String visit(FormalParameter n, Void argu) throws Exception {
+        String type = JavaToLLVM(n.f0.accept(this, argu));
+        String identifier = n.f1.accept(this, argu);
+        emit(", " + type + " %." + identifier);
+        return null;
+    }
+
+     public String visit(IntegerArrayType n, Void argu) throws Exception {
+        return "int[]";
+    }
+
+    public String visit(BooleanArrayType n, Void argu) throws Exception {
+        return "boolean[]";
+    }
+
+    public String visit(BooleanType n, Void argu) {
+        return "boolean";
+    }
+
+    public String visit(IntegerType n, Void argu) {
+        return "int";
+    }
+
+     /**
+    * f0 -> <IDENTIFIER>
+    */
+    public String visit(Identifier n, Void argu) throws Exception {
+        return n.f0.toString();
+    }
+
+    String JavaToLLVM(String type){
+        switch(type){
+            case "boolean": return "i1";
+            case "int": return "i32";
+            default: return "i8*";
+        }
+    }
 }

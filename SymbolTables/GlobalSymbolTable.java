@@ -81,6 +81,7 @@ public class GlobalSymbolTable {
             for (String methodName : methodsTable.keySet()){
                 if (!classSymbolTable.checkMethodOverwrite(methodsTable.get(methodName), this)){
                     System.out.println(className + "." + methodName + " : " + classSymbolTable.methodsOffset);
+                    methodsTable.get(methodName).setOffset(classSymbolTable.methodsOffset);
                     classSymbolTable.methodsOffset += 8;
                 }
             }

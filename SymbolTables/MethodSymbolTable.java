@@ -7,6 +7,7 @@ public class MethodSymbolTable {
     String returnType;
     Map<String, String> argumentsTable;
     Map<String, String> localVariablesTable;
+    int offset;
 
     public MethodSymbolTable(String methodName, String returnType){
         this.methodName = methodName;
@@ -14,6 +15,9 @@ public class MethodSymbolTable {
         this.argumentsTable = new LinkedHashMap<String, String>();   //varName -> varType
         this.localVariablesTable = new LinkedHashMap<String, String>();  //varName -> varType
     }
+
+    public void setOffset(int offset) { this.offset = offset; }
+    public int getOffset() { return this.offset; }
 
     public String getMethodName() { return this.methodName; }
 
