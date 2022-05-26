@@ -36,6 +36,10 @@ public class ClassSymbolTable {
 
     public String getParentName(){ return this.parentName; }
 
+    public int getClassSize(){ return fieldsOffset + 8; }
+
+    public int getNumMethods() { return this.methodsTable.size(); }
+
     public Map<String, String>  getFieldsTable() { return this.fieldsTable; }
     public Map<String, MethodSymbolTable>  getMethodsTable() { return this.methodsTable; }
 

@@ -1,9 +1,8 @@
-import java.io.FileNotFoundException;
 import java.io.PrintWriter;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
-import javax.print.DocFlavor.STRING;
 
 import SymbolTables.ClassSymbolTable;
 import SymbolTables.GlobalSymbolTable;
@@ -16,6 +15,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     GlobalSymbolTable symbolTable;
     ClassSymbolTable curClassSymbolTable;
     MethodSymbolTable curMethodSymbolTable;
+    Map<String, String> methodCallerType;
     VTable vtable;
     PrintWriter writer;
 
@@ -23,6 +23,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     int ifCount = 1;
     int oobCount = 1;
     int loopCount = 1;
+    int arrCount = 1;
 
     boolean isInMethod = false;
     
@@ -30,6 +31,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         this.symbolTable = globalSymbolTable;
         this.writer = llvmWriter;
         this.vtable = new VTable(this.symbolTable);
+        this.methodCallerType = new LinkedHashMap<String, String>();
 
         this.defineVTable();
         this.defineHelperMethods();
@@ -40,12 +42,17 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     String newIfLabel() { return "if" + ifCount++; }
     String newOobLabel() { return "oob" + oobCount++; }
     String newLoopLabel() { return "loop" + loopCount++; }
+    String newArrAllocLabel() { return "arr_alloc" + arrCount++; }
     void resetCounters() {
         this.registerCount = 1;
         this.ifCount = 1;
         this.oobCount = 1;
         this.loopCount = 1;
+        this.arrCount = 1;
     }
+
+    String getExprType(String expr) { return expr.split(" ")[0]; }
+    String getExprValue(String expr) { return expr.split(" ")[1]; }
 
     void defineVTable() throws Exception{
         this.writer.println(this.vtable.definition());
@@ -201,7 +208,8 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         n.f7.accept(this, argu);
         n.f8.accept(this, argu);
         n.f9.accept(this, argu);
-        n.f10.accept(this, argu);
+        String expr = n.f10.accept(this, argu);
+        //emit("ret " + getExprType(expr) + " " + getExprValue(expr) + " ");
         n.f11.accept(this, argu);
         n.f12.accept(this, argu);
         this.isInMethod = false;
@@ -226,12 +234,278 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     * f2 -> ";"
     */
     public String visit(VarDeclaration n, Void argu) throws Exception {
-        String type = JavaToLLVM(n.f0.accept(this, argu));
+        String type = n.f0.accept(this, argu);
         String identifier = n.f1.accept(this, argu);
         n.f2.accept(this, argu);
         if (isInMethod){
-            emit("\t%" + identifier + " = alloca " + type + "\n\n");
+            String llvmType = JavaToLLVM(type);
+            emit("\t%" + identifier + " = alloca " + llvmType + "\n\n");
         }
+        this.methodCallerType.put("%" + identifier, type);
+        return null;
+    }
+
+    /**
+    * f0 -> PrimaryExpression()
+    * f1 -> "."
+    * f2 -> Identifier()
+    * f3 -> "("
+    * f4 -> ( ExpressionList() )?
+    * f5 -> ")"
+    */
+    public String visit(MessageSend n, Void argu) throws Exception {
+        String expr = n.f0.accept(this, argu);
+        System.out.println("Expr = " + expr);
+        String objectReg = getExprValue(expr);
+        String reg1 = newTemp();
+        emit("\t" + reg1 + " = load i8*, i8** " + objectReg + "\n");
+        String objectType = this.methodCallerType.get(objectReg);
+        if (expr.equals("i8* %this"))
+            objectType = curClassSymbolTable.getClassName();
+
+        n.f1.accept(this, argu);
+        String methodName = n.f2.accept(this, argu);
+        MethodSymbolTable methodSymbolTable = symbolTable.getClassSymbolTable(objectType).getMethodSymbolTable(methodName);
+        int methodOffset = methodSymbolTable.getOffset();
+        String methodReturnType = JavaToLLVM(methodSymbolTable.getReturnType());
+        System.out.println(";" + objectType + "." + methodName + ": " + methodOffset  + "\n");
+        emit(";" + objectType + "." + methodName + ": " + methodOffset  + "\n");
+        String reg2 = newTemp();
+        String reg3 = newTemp();
+        String reg4 = newTemp();
+        String reg5 = newTemp();
+        emit("\t" + reg2 + " = bitcast i8* " + reg1 + " to i8***\n");
+        emit("\t" + reg3 + " = load i8**, i8*** " + reg2 + "\n");
+        emit("\t" + reg4 + " = getelementptr i8*, i8** " + reg3 + ", i32 " + methodOffset + "\n");
+        emit("\t" + reg5 + " = load i8*, i8** " + reg4 + "\n");
+
+        
+        String reg6 = newTemp();
+        emit("\t" + reg6 + " = bitcast i8* " + reg5 + " to " + methodReturnType + " (i8*"); //Continue with argument types
+        Map<String,String> argumentSymbolTable = methodSymbolTable.getArgumentSymbolTable();
+        Set<String> arguments = argumentSymbolTable.keySet();
+        for (String argument : arguments){
+            String type = JavaToLLVM(argumentSymbolTable.get(argument));
+            emit(", " + type);
+        }
+        emit(")*\n");
+        
+        String reg7 = newTemp();
+        //TODO: Add call parameters
+        emit("\t" + reg7 + " = call " + methodReturnType + " " + reg6 + "(i8* " + reg1); //Continue with call parameters
+        
+        n.f3.accept(this, argu);
+        System.out.println("reached");
+        n.f4.accept(this, argu);
+        System.out.println("REACHED");
+        n.f5.accept(this, argu);
+        
+        System.out.println(methodReturnType + " " + reg7);
+        return methodReturnType + " " + reg7;
+    }
+
+    /**
+    * f0 -> IntegerLiteral()
+    *       | TrueLiteral()
+    *       | FalseLiteral()
+    *       | Identifier()
+    *       | ThisExpression()
+    *       | ArrayAllocationExpression()
+    *       | AllocationExpression()
+    *       | BracketExpression()
+    */
+    public String visit(PrimaryExpression n, Void argu) throws Exception {
+        String expr = n.f0.accept(this, argu);
+        System.out.println("Read PrimaryExpression: " + expr);
+        if (expr.equals("%this"))
+            return "i8* %this";
+        if (expr.equals("true"))
+            return "i1 1";
+        if (expr.equals("false"))
+            return "i1 0";
+        if (expr.matches("-?\\d+"))
+            return "i32 " + expr;
+        if (expr.startsWith("i32*"))
+            return expr;
+        if (expr.startsWith("i1*"))
+            return expr;
+        if (expr.startsWith("i8*"))
+            return expr;
+
+        return "i8* %" + expr;
+    }
+
+    /**
+    * f0 -> AndExpression()
+    *       | CompareExpression()
+    *       | PlusExpression()
+    *       | MinusExpression()
+    *       | TimesExpression()
+    *       | ArrayLookup()
+    *       | ArrayLength()
+    *       | MessageSend()
+    *       | Clause()
+    */
+    public String visit(Expression n, Void argu) throws Exception {
+        String expr = n.f0.accept(this, argu);
+        System.out.println(expr);
+        return expr;
+    }
+
+    /**
+    * f0 -> Expression()
+    * f1 -> ExpressionTail()
+    */
+    public String visit(ExpressionList n, Void argu) throws Exception {
+        System.out.println("Expression list: ");
+        String expr = n.f0.accept(this, argu);
+        System.out.println(expr);
+        n.f1.accept(this, argu);
+        return null;
+    }
+
+    /**
+     * f0 -> ( ExpressionTerm() )*
+    */
+    public String visit(ExpressionTail n, Void argu) throws Exception {
+        return n.f0.accept(this, argu);
+    }
+
+    /**
+     * f0 -> ","
+    * f1 -> Expression()
+    */
+    public String visit(ExpressionTerm n, Void argu) throws Exception {
+        n.f0.accept(this, argu);
+        n.f1.accept(this, argu);
+        return null;
+    }
+
+    /**
+    * f0 -> "new"
+    * f1 -> "boolean"
+    * f2 -> "["
+    * f3 -> Expression()
+    * f4 -> "]"
+    */
+    public String visit(BooleanArrayAllocationExpression n, Void argu) throws Exception {
+        n.f0.accept(this, argu);
+        n.f1.accept(this, argu);
+        n.f2.accept(this, argu);
+        String expr = n.f3.accept(this, argu);
+        n.f4.accept(this, argu);
+
+        String reg1 = newTemp();
+        String labelError = newArrAllocLabel();
+        String labelSuccess = newArrAllocLabel();
+        emit("\t" + reg1 + " = icmp slt i32 " + expr + ", 0\n");
+        emit("\tbr i1 " + reg1 + ", label %" + labelError + ", label %" + labelSuccess + "\n\n");
+
+        emit(labelError + ":\n");
+        emit("\tcall void @throw_oob()\n");
+        emit("\tbr label %" + labelSuccess + "\n\n");
+
+        emit(labelSuccess + ":\n");
+        String reg2 = newTemp();
+        emit("\t" + reg2 + " = add i32 " + expr + ", 1\n");
+        String reg3 = newTemp();
+        emit("\t" + reg3 + " = call i8* @calloc(i32 1, i32 " + reg2 + ")\n");
+        String reg4 = newTemp();
+        emit("\t" + reg4 + " = bitcast i8* " + reg3 + " to i32*\n");
+        emit("\tstore i32 " + expr + ", i32* " + reg4 + "\n");
+
+        return "i1* " + reg4;
+    }
+
+    /**
+     * f0 -> "new"
+    * f1 -> "int"
+    * f2 -> "["
+    * f3 -> Expression()
+    * f4 -> "]"
+    */
+    public String visit(IntegerArrayAllocationExpression n, Void argu) throws Exception {
+        n.f0.accept(this, argu);
+        n.f1.accept(this, argu);
+        n.f2.accept(this, argu);
+        String expr = n.f3.accept(this, argu);
+        n.f4.accept(this, argu);
+
+        String reg1 = newTemp();
+        String labelError = newArrAllocLabel();
+        String labelSuccess = newArrAllocLabel();
+        emit("\t" + reg1 + " = icmp slt i32 " + expr + ", 0\n");
+        emit("\tbr i1 " + reg1 + ", label %" + labelError + ", label %" + labelSuccess + "\n\n");
+
+        emit(labelError + ":\n");
+        emit("\tcall void @throw_oob()\n");
+        emit("\tbr label %" + labelSuccess + "\n\n");
+
+        emit(labelSuccess + ":\n");
+        String reg2 = newTemp();
+        emit("\t" + reg2 + " = add i32 " + expr + ", 1\n");
+        String reg3 = newTemp();
+        emit("\t" + reg3 + " = call i8* @calloc(i32 4, i32 " + reg2 + ")\n");
+        String reg4 = newTemp();
+        emit("\t" + reg4 + " = bitcast i8* " + reg3 + " to i32*\n");
+        emit("\tstore i32 " + expr + ", i32* " + reg4 + "\n");
+
+        return "i32* " + reg4;
+    }
+
+    /**
+    * f0 -> "new"
+    * f1 -> Identifier()
+    * f2 -> "("
+    * f3 -> ")"
+    */
+    public String visit(AllocationExpression n, Void argu) throws Exception {
+        n.f0.accept(this, argu);
+        String className = n.f1.accept(this, argu);
+        n.f2.accept(this, argu);
+        n.f3.accept(this, argu);
+
+        String reg1 = newTemp();
+        String reg2 = newTemp();
+        String reg3 = newTemp();
+        
+        int classSize = symbolTable.getClassSymbolTable(className).getClassSize();
+        int numMethods = symbolTable.getClassSymbolTable(className).getNumMethods();
+        emit("\t" + reg1 + " = call i8* @calloc(i32 1, i32 " + classSize + ")\n");
+        emit("\t" + reg2 + " = bitcast i8* " + reg1 + " to i8***\n");
+        emit("\t" + reg3 + " = getelementptr [" + numMethods + " x i8*], [" + numMethods + " x i8*]* @." + className + "_vtable, i32 0, i32 0\n");
+        emit("\t" + "store i8** " + reg3 + ", i8***" + reg2);
+        this.methodCallerType.put(reg3, className);
+        return "i8* " + reg3;
+    }
+
+    /**
+    * f0 -> "("
+    * f1 -> Expression()
+    * f2 -> ")"
+    */
+    public String visit(BracketExpression n, Void argu) throws Exception {
+        n.f0.accept(this, argu);
+        String expr = n.f1.accept(this, argu);
+        n.f2.accept(this, argu);
+        return expr;
+    }
+
+    /**
+    * f0 -> Identifier()
+    * f1 -> "="
+    * f2 -> Expression()
+    * f3 -> ";"
+    */
+    public String visit(AssignmentStatement n, Void argu) throws Exception {
+        String identifier = n.f0.accept(this, argu);
+        n.f1.accept(this, argu);
+        String expr = n.f2.accept(this, argu);
+        n.f3.accept(this, argu);
+        
+        String identifierType = JavaToLLVM(curMethodSymbolTable.getIdentifierType(identifier, curClassSymbolTable, symbolTable));
+
+        emit("\tstore " + expr + ", " + identifierType + "* %" + identifier + "\n");
         return null;
     }
 
@@ -251,11 +525,41 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         return "int";
     }
 
+    /**
+    * f0 -> <INTEGER_LITERAL>
+    */
+    public String visit(IntegerLiteral n, Void argu) throws Exception {
+        return n.f0.toString();
+    }
+
+    /**
+    * f0 -> "true"
+    */
+    public String visit(TrueLiteral n, Void argu) throws Exception {
+        return "true";
+    }
+
+    /**
+     * f0 -> "false"
+    */
+    public String visit(FalseLiteral n, Void argu) throws Exception {
+        return "false";
+    }
+
+    /**
+    * f0 -> "this"
+    */
+    public String visit(ThisExpression n, Void argu) throws Exception {
+        return "%this";
+    }
+
      /**
     * f0 -> <IDENTIFIER>
     */
     public String visit(Identifier n, Void argu) throws Exception {
-        return n.f0.toString();
+        String ident = n.f0.toString();
+        System.out.println("Read: " + ident);
+        return ident;
     }
 
     String JavaToLLVM(String type){
