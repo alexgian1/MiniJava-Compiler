@@ -1,5 +1,6 @@
 package SymbolTables;
 import java.util.Map;
+import java.util.Set;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 
@@ -129,5 +130,32 @@ public class ClassSymbolTable {
             this.fieldsOffset = parentSymbolTable.fieldsOffset;
             this.methodsOffset = parentSymbolTable.methodsOffset;
         }
+    }
+
+    public boolean hasField(String identifier){
+        return this.fieldsTable.containsKey(identifier);
+    }
+
+    public int getFieldOffset(String identifier){
+        int offset = 0;
+        Set<String> fields = this.fieldsTable.keySet();
+        for(String field : fields){
+            if (field.equals(identifier)) return offset;
+            String type = this.fieldsTable.get(field);
+            switch(type){
+                case "int" : 
+                    offset += 4;
+                    break;
+                case "boolean" : 
+                    offset += 1;
+                    break;
+                default : offset += 8;
+            }
+        }
+        return -1;
+    }
+
+    public String getFieldType(String identifier){
+        return this.fieldsTable.get(identifier);
     }
 }

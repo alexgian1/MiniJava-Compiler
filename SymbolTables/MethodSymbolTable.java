@@ -65,4 +65,16 @@ public class MethodSymbolTable {
         //Identifier not found
         return null;
     }
+
+    public boolean hasLocalVariable(String identifier){
+        if (this.localVariablesTable.containsKey(identifier))
+            return true;
+        
+        else if (this.argumentsTable.containsKey(identifier))
+            return true;
+
+        return false;
+    }
+
+    
 }
