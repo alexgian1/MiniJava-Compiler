@@ -25,7 +25,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     int loopCount = 0;
     int arrCount = 0;
 
-    boolean isInMethod, isCallerParameter, checkForFields = false;
+    boolean isInMethod, isCallerParameter, checkForFields, returnArguments = false;
     
     LLVMGeneratingVisitor(GlobalSymbolTable globalSymbolTable, PrintWriter llvmWriter) throws Exception{
         this.symbolTable = globalSymbolTable;
@@ -221,6 +221,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         n.f5.accept(this, argu);
         n.f6.accept(this, argu);
         this.isInMethod = true;
+        this.returnArguments = true;
         n.f7.accept(this, argu);
         n.f8.accept(this, argu);
         n.f9.accept(this, argu);
@@ -229,6 +230,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         n.f11.accept(this, argu);
         n.f12.accept(this, argu);
         this.isInMethod = false;
+        this.returnArguments = false;
         emit("}\n\n");
         return null;
      }
@@ -304,21 +306,25 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         Map<String,String> argumentSymbolTable = methodSymbolTable.getArgumentSymbolTable();
         Set<String> arguments = argumentSymbolTable.keySet();
         for (String argument : arguments){
+            System.out.println("Method " + methodName + " has argument: " + argument);
             String type = JavaToLLVM(argumentSymbolTable.get(argument));
             emit(", " + type);
         }
         emit(")*\n");
         
         String reg7 = newTemp();
-        emit("\t" + reg7 + " = call " + llvmReturnType + " " + reg6 + "(i8* " + objectReg); //Continue with call parameters
+        
         
         n.f3.accept(this, argu);
         this.isCallerParameter = true;
-        n.f4.accept(this, argu);
+        String argList = n.f4.accept(this, argu);
         this.isCallerParameter = false;
         n.f5.accept(this, argu);
+        emit("\t" + reg7 + " = call " + llvmReturnType + " " + reg6 + "(i8* " + objectReg); //Continue with call parameters
+        if (argList != null)
+            emit (", " + argList);
         emit(")\n");
-        
+        System.out.println("Called " + methodName + " with arguments: " + argList);        
         System.out.println(methodReturnType + " " + reg7);
         return llvmReturnType + " " + reg7;
     }
@@ -344,9 +350,9 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
             return "i1 0";
         if (expr.matches("-?\\d+"))
             return "i32 " + expr;
-        if (expr.startsWith("i32*"))
+        if (expr.startsWith("i32"))
             return expr;
-        if (expr.startsWith("i1*"))
+        if (expr.startsWith("i1"))
             return expr;
         if (expr.startsWith("i8*"))
             return expr;
@@ -369,12 +375,42 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         String expr = n.f0.accept(this, argu);
         
         System.out.println(expr);
-        if (isCallerParameter){
-            String type = getExprType(expr);
-            String value = getExprValue(expr);
-            emit(", " + type + " " + value);
-        }
+        //if (isCallerParameter){
+        //    String type = getExprType(expr);
+        //    String value = getExprValue(expr);
+        //    emit(", " + type + " " + value);
+        //}
         return expr;
+    }
+
+    /**
+    * f0 -> ","
+    * f1 -> Expression()
+    */
+    public String visit(ExpressionTerm n, Void argu) throws Exception {
+        n.f0.accept(this, argu);
+        String expr = n.f1.accept(this, argu);
+        return ", " + expr;
+    }
+
+    /**
+    * f0 -> Expression()
+    * f1 -> ExpressionTail()
+    */
+    public String visit(ExpressionList n, Void argu) throws Exception {
+        String expr1 = n.f0.accept(this, argu);
+        String expr2 = n.f1.accept(this, argu);
+        String ret = expr1 + expr2;
+        ret = ret.replace(", null", "");
+        ret = ret.replace("null", "");
+        return ret;
+    }
+
+    /**
+    * f0 -> ( ExpressionTerm() )*
+    */
+    public String visit(ExpressionTail n, Void argu) throws Exception {
+        return ", " + n.f0.accept(this, argu);
     }
 
     /**
