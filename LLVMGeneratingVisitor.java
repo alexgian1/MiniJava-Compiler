@@ -25,7 +25,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     int loopCount = 0;
     int arrCount = 0;
 
-    boolean isInMethod, isCallerParameter, checkForFields, returnArguments = false;
+    boolean isInMethod, keepJavaType, checkForFields, returnArguments = false;
     
     LLVMGeneratingVisitor(GlobalSymbolTable globalSymbolTable, PrintWriter llvmWriter) throws Exception{
         this.symbolTable = globalSymbolTable;
@@ -46,7 +46,6 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     void resetRegisters() { this.registerCount = 0; }
 
     String getExprType(String expr) {
-        System.out.println("REQUESTED TYPE OF " + expr);
         if (expr.split(" ").length == 3)
             return expr.split(" ")[1];
         else
@@ -93,6 +92,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
             reg = newTemp();
             emit("\t" + reg + " = load " + type + ", " + type + "* " + variable + "\n");
         }
+        this.methodCallerType.put(variable, type);
         return reg;
     }
 
@@ -226,12 +226,12 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         n.f8.accept(this, argu);
         n.f9.accept(this, argu);
         String expr = n.f10.accept(this, argu);
-        emit("\nret " + getExprType(expr) + " " + getExprValue(expr) + " ");
+        emit("\n\tret " + getExprType(expr) + " " + getExprValue(expr) + " ");
         n.f11.accept(this, argu);
         n.f12.accept(this, argu);
         this.isInMethod = false;
         this.returnArguments = false;
-        emit("}\n\n");
+        emit("\n}\n\n");
         return null;
      }
 
@@ -274,8 +274,9 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     * f5 -> ")"
     */
     public String visit(MessageSend n, Void argu) throws Exception {
+        if (curClassSymbolTable != null) this.checkForFields = true;
         String expr = n.f0.accept(this, argu);
-        System.out.println("Expr = " + expr);
+        this.checkForFields = false;
         String objectReg = getExprValue(expr);
         String objectType = this.methodCallerType.get(objectReg);
         if (objectType == null)
@@ -306,7 +307,6 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         Map<String,String> argumentSymbolTable = methodSymbolTable.getArgumentSymbolTable();
         Set<String> arguments = argumentSymbolTable.keySet();
         for (String argument : arguments){
-            System.out.println("Method " + methodName + " has argument: " + argument);
             String type = JavaToLLVM(argumentSymbolTable.get(argument));
             emit(", " + type);
         }
@@ -316,17 +316,16 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         
         
         n.f3.accept(this, argu);
-        this.isCallerParameter = true;
+        this.checkForFields = true;
         String argList = n.f4.accept(this, argu);
-        this.isCallerParameter = false;
+        this.checkForFields = false;
         n.f5.accept(this, argu);
         emit("\t" + reg7 + " = call " + llvmReturnType + " " + reg6 + "(i8* " + objectReg); //Continue with call parameters
         if (argList != null)
             emit (", " + argList);
         emit(")\n");
         System.out.println("Called " + methodName + " with arguments: " + argList);        
-        System.out.println(methodReturnType + " " + reg7);
-        return llvmReturnType + " " + reg7;
+        return methodReturnType + " " + reg7;
     }
 
     /**
@@ -341,7 +340,6 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     */
     public String visit(PrimaryExpression n, Void argu) throws Exception {
         String expr = n.f0.accept(this, argu);
-        System.out.println("Read PrimaryExpression: " + expr);
         if (expr.equals("%this"))
             return "i8* %this";
         if (expr.equals("true"))
@@ -373,13 +371,6 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     */
     public String visit(Expression n, Void argu) throws Exception {
         String expr = n.f0.accept(this, argu);
-        
-        System.out.println(expr);
-        //if (isCallerParameter){
-        //    String type = getExprType(expr);
-        //    String value = getExprValue(expr);
-        //    emit(", " + type + " " + value);
-        //}
         return expr;
     }
 
@@ -404,13 +395,6 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         ret = ret.replace(", null", "");
         ret = ret.replace("null", "");
         return ret;
-    }
-
-    /**
-    * f0 -> ( ExpressionTerm() )*
-    */
-    public String visit(ExpressionTail n, Void argu) throws Exception {
-        return ", " + n.f0.accept(this, argu);
     }
 
     /**
@@ -588,7 +572,6 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     public String visit(MinusExpression n, Void argu) throws Exception {
         String expr1 = n.f0.accept(this, argu);
         String value1 = getExprValue(expr1);
-        System.out.println("Parsed " + value1 + " of type " + getExprType(expr1));
         n.f1.accept(this, argu);
         String expr2 = n.f2.accept(this, argu);
         String value2 = getExprValue(expr2);
@@ -620,10 +603,8 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     * f3 -> "]"
     */
     public String visit(ArrayLookup n, Void argu) throws Exception {
-        System.out.println("reached--------------------");
         String arrayExpr = n.f0.accept(this, argu);
         String arrayReg = getExprValue(arrayExpr);
-        System.out.println("arrayExpr: " + arrayReg);
 
         String arrayType;
         if(arrayExpr.startsWith("i")) arrayType = getExprType(arrayExpr);
@@ -686,16 +667,25 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     */
     public String visit(AssignmentStatement n, Void argu) throws Exception {
         String identifier = n.f0.accept(this, argu);
+        String identifierType = JavaToLLVM(curMethodSymbolTable.getIdentifierType(identifier, curClassSymbolTable, symbolTable));
+        if (this.curClassSymbolTable.hasField(identifier)){
+            int fieldOffset = this.curClassSymbolTable.getFieldOffset(identifier);
+            System.out.println("----------------------Found field assignment: " + identifier + " with offset " + fieldOffset);
+
+            String reg1 = newTemp();
+            String reg2 = newTemp();
+            emit("\n\t" + reg1 + " = getelementptr i8, i8* %this, i32 " + fieldOffset + "\n");
+            emit("\t" + reg2 + " = bitcast i8* " + reg1 + " to " + identifierType + "*\n");
+            identifier = reg2.replace("%", "");
+        }
         n.f1.accept(this, argu);
         checkForFields = true;
         String expr = n.f2.accept(this, argu);
         checkForFields = false;
         n.f3.accept(this, argu);
         
+        emit("\tstore " + identifierType + " " + getExprValue(expr) + ", " + identifierType + "* %" + identifier + "\n");
         
-        String identifierType = JavaToLLVM(curMethodSymbolTable.getIdentifierType(identifier, curClassSymbolTable, symbolTable));
-
-        emit("\tstore " + expr + ", " + identifierType + "* %" + identifier + "\n");
         return null;
     }
 
@@ -710,7 +700,6 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         n.f0.accept(this, argu);
         n.f1.accept(this, argu);
         String expr = n.f2.accept(this, argu);
-        System.out.println("Trying to print " + expr);
         n.f3.accept(this, argu);
         n.f4.accept(this, argu);
         emit("\n\tcall void (i32) @print_int(i32 " + getExprValue(expr) + ")\n");
@@ -770,17 +759,16 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         if (checkForFields){
             //TODO: Check for local variables/parameters
             if (curMethodSymbolTable.hasLocalVariable(identifier)){
-                String varType = JavaToLLVM(curMethodSymbolTable.getIdentifierType(identifier, curClassSymbolTable, symbolTable));
-                System.out.println("Found " + identifier + " with type " + varType + " in local vars");
+                String varType = curMethodSymbolTable.getIdentifierType(identifier, curClassSymbolTable, symbolTable);
+                String varTypeLLVM = JavaToLLVM(varType);
                 String reg1 = newTemp();
-                emit("\t" + reg1 + " = load " + varType + ", " + varType + "* %" + identifier + "\n");
-                return varType + " " + reg1;
+                this.methodCallerType.put(reg1, varType);
+                emit("\t" + reg1 + " = load " + varTypeLLVM + ", " + varTypeLLVM + "* %" + identifier + "\n");
+                return varTypeLLVM + " " + reg1;
             }
             else if (curClassSymbolTable.hasField(identifier)){
-                System.out.println(identifier + " is class field");
                 int fieldOffset = curClassSymbolTable.getFieldOffset(identifier) + 8;
                 String fieldType = JavaToLLVM(curClassSymbolTable.getFieldType(identifier));
-                System.out.println(identifier + " offset: " + fieldOffset);
                 String reg1 = newTemp();
                 String reg2 = newTemp();
                 String reg3 = newTemp();
