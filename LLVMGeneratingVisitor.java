@@ -703,34 +703,77 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         
         //int array
         System.out.println("Requested access to " + arrayType + " array: " + arrayExpr);
-        if (arrayType.equals("i32*")){
-            emit("\n\t" + reg1 + " = getelementptr i8, i8* %this, i32 8\n");
-            emit("\t" + reg2 + " = bitcast i8* " + reg1 + " to i32**\n");
-            emit("\t" + reg3 + " = load i32*, i32** " + reg2 + "\n");
-            indexReg = varToReg(indexReg, "i32");
-            emit("\t" + reg4 + " = load i32, i32* " + reg3 + "\n");
-            emit("\t" + reg5 + " = icmp ult i32 " + indexReg + ", " + reg4 + "\n");
-            emit("\tbr i1 " + reg5 + ", label %" + oob1 + ", label %" + oob2 + "\n");
-
-            emit("\n" + oob1 + ":\n");
-            emit("\t" + reg6 + " = add i32 " + indexReg + ", 1\n");
-            emit("\t" + reg7 + " = getelementptr i32, i32* " + reg3 + ", i32 " + reg6 + "\n");
-            emit("\t" + reg8 + " = load i32, i32* " + reg7 + "\n");
-            emit("\tbr label %" + oob3 + "\n");
-
-            emit("\n" + oob2 + ":\n");
-            emit("\tcall void @throw_oob()\n");
-            emit("\tbr label %" + oob3 + "\n");
-
-            emit("\n" + oob3 + ":\n");
-        }
-        //bool array
-        else{
-            //TODO: Add boolean array lookup
-            emit("TODO: BOOL ARRAY ACCESS");
-        }
         
+        emit("\n\t" + reg1 + " = getelementptr i8, i8* %this, i32 8\n");
+        emit("\t" + reg2 + " = bitcast i8* " + reg1 + " to i32**\n");
+        emit("\t" + reg3 + " = load i32*, i32** " + reg2 + "\n");
+        indexReg = varToReg(indexReg, "i32");
+        emit("\t" + reg4 + " = load i32, i32* " + reg3 + "\n");
+        emit("\t" + reg5 + " = icmp ult i32 " + indexReg + ", " + reg4 + "\n");
+        emit("\tbr i1 " + reg5 + ", label %" + oob1 + ", label %" + oob2 + "\n");
+
+        emit("\n" + oob1 + ":\n");
+        emit("\t" + reg6 + " = add i32 " + indexReg + ", 1\n");
+        emit("\t" + reg7 + " = getelementptr i32, i32* " + reg3 + ", i32 " + reg6 + "\n");
+        emit("\t" + reg8 + " = load i32, i32* " + reg7 + "\n");
+        emit("\tbr label %" + oob3 + "\n");
+
+        emit("\n" + oob2 + ":\n");
+        emit("\tcall void @throw_oob()\n");
+        emit("\tbr label %" + oob3 + "\n");
+
+        emit("\n" + oob3 + ":\n");
+        
+        //TODO: return i1 in case of boolean
         return "i32* " + reg8;
+    }
+
+    /**
+    * f0 -> Identifier()
+    * f1 -> "["
+    * f2 -> Expression()
+    * f3 -> "]"
+    * f4 -> "="
+    * f5 -> Expression()
+    * f6 -> ";"
+    */
+    public String visit(ArrayAssignmentStatement n, Void argu) throws Exception {
+        emit("\n");
+        String reg1 = newTemp();
+        String reg2 = newTemp();
+        String reg3 = newTemp();
+        String reg4 = newTemp();
+        String oob1 = newOobLabel();
+        String oob2 = newOobLabel();
+        String oob3 = newOobLabel();
+
+        this.checkForFields = true;
+        String identifier = n.f0.accept(this, argu);
+        this.checkForFields = false;
+        n.f1.accept(this, argu);
+        String indexExpr = n.f2.accept(this, argu);
+        n.f3.accept(this, argu);
+        n.f4.accept(this, argu);
+        String expr = n.f5.accept(this, argu);
+        n.f6.accept(this, argu);
+
+        emit("\t" + reg1 + " = load i32, i32 *" + getExprValue(identifier) + "\n");
+        emit("\t" + reg2 + " = icmp ult i32 " + getExprValue(indexExpr) + ", " + reg1 + "\n");
+        emit("\tbr i1 " + reg2 + ", label %" + oob1 + ", label %" + oob2);
+
+        emit("\n" + oob1 + ":\n");
+        emit("\t" + reg3 + " = add i32 " + getExprValue(indexExpr) + ", 1\n");
+        emit("\t" + reg4 + " = getelementptr i32, i32* " + getExprValue(identifier) + ", i32 " + reg3 + "\n");
+        emit("\tstore i32 " + getExprValue(expr) + ", i32* " + reg4 + "\n");
+        emit("\tbr label %" + oob3 + "\n");
+
+        emit("\n" + oob2 + ":\n");
+        emit("\tcall void @throw_oob()\n");
+        emit("\tbr label %" + oob3 + "\n");
+
+        emit("\n" + oob3 + ":\n");
+
+        return null;
     }
 
     /**
@@ -927,10 +970,6 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         return null;
     }
 
-    //TODO: Add array assignment
-
-
-    //TODO: Add array length
     /**
     * f0 -> PrimaryExpression()
     * f1 -> "."
@@ -943,7 +982,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         n.f1.accept(this, argu);
         n.f2.accept(this, argu);
         emit("\t" + reg1 + " = load i32, i32* " + getExprValue(expr));
-        return "i32 " + reg1 ; // +reg
+        return "i32 " + reg1 ;
     }
 
     
