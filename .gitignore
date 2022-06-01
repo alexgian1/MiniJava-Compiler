@@ -11,3 +11,4 @@ Token*
 *.class
 *.ll
 test_results.txt
+out

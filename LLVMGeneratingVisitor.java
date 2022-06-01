@@ -383,7 +383,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     public String visit(ExpressionTerm n, Void argu) throws Exception {
         n.f0.accept(this, argu);
         String expr = n.f1.accept(this, argu);
-        return ", " + expr;
+        return ", " + JavaToLLVM(getExprType(expr)) + " " + getExprValue(expr);
     }
 
     /**
@@ -393,6 +393,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     public String visit(ExpressionList n, Void argu) throws Exception {
         String expr1 = n.f0.accept(this, argu);
         String expr2 = n.f1.accept(this, argu);
+        expr1 = JavaToLLVM(getExprType(expr1)) + " " + getExprValue(expr1);
         String ret = expr1 + expr2;
         ret = ret.replace(", null", "");
         ret = ret.replace("null", "");
@@ -416,7 +417,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         String reg1 = newTemp();
         String labelError = newArrAllocLabel();
         String labelSuccess = newArrAllocLabel();
-        emit("\t" + reg1 + " = icmp slt i32 " + expr + ", 0\n");
+        emit("\t" + reg1 + " = icmp slt i32 " + getExprValue(expr) + ", 0\n");
         emit("\tbr i1 " + reg1 + ", label %" + labelError + ", label %" + labelSuccess + "\n\n");
 
         emit(labelError + ":\n");
@@ -425,12 +426,12 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
 
         emit(labelSuccess + ":\n");
         String reg2 = newTemp();
-        emit("\t" + reg2 + " = add i32 " + expr + ", 1\n");
+        emit("\t" + reg2 + " = add i32 " + getExprValue(expr) + ", 1\n");
         String reg3 = newTemp();
         emit("\t" + reg3 + " = call i8* @calloc(i32 1, i32 " + reg2 + ")\n");
         String reg4 = newTemp();
         emit("\t" + reg4 + " = bitcast i8* " + reg3 + " to i32*\n");
-        emit("\tstore " + expr + ", i32* " + reg4 + "\n");
+        emit("\tstore " + getExprValue(expr) + ", i32* " + reg4 + "\n");
 
         return "i1* " + reg4;
     }
@@ -452,7 +453,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         String reg1 = newTemp();
         String labelError = newArrAllocLabel();
         String labelSuccess = newArrAllocLabel();
-        emit("\t" + reg1 + " = icmp slt i32 " + expr + ", 0\n");
+        emit("\t" + reg1 + " = icmp slt i32 " + getExprValue(expr) + ", 0\n");
         emit("\tbr i1 " + reg1 + ", label %" + labelError + ", label %" + labelSuccess + "\n\n");
 
         emit(labelError + ":\n");
@@ -461,12 +462,12 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
 
         emit(labelSuccess + ":\n");
         String reg2 = newTemp();
-        emit("\t" + reg2 + " = add i32 " + expr + ", 1\n");
+        emit("\t" + reg2 + " = add i32 " + getExprValue(expr) + ", 1\n");
         String reg3 = newTemp();
         emit("\t" + reg3 + " = call i8* @calloc(i32 4, i32 " + reg2 + ")\n");
         String reg4 = newTemp();
         emit("\t" + reg4 + " = bitcast i8* " + reg3 + " to i32*\n");
-        emit("\tstore i32 " + expr + ", i32* " + reg4 + "\n");
+        emit("\tstore i32 " + getExprValue(expr) + ", i32* " + reg4 + "\n");
 
         return "i32* " + reg4;
     }
@@ -540,11 +541,13 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     * f2 -> PrimaryExpression()
     */
     public String visit(CompareExpression n, Void argu) throws Exception {
+        this.checkForFields = true;
         String expr1 = n.f0.accept(this, argu);
         String value1 = getExprValue(expr1);
         n.f1.accept(this, argu);
         String expr2 = n.f2.accept(this, argu);
         String value2 = getExprValue(expr2);
+        this.checkForFields = false;
         String reg1 = newTemp();
         emit("\t" + reg1 + " = icmp slt i32 " + value1 + ", " + value2 + "\n");
         return "i1 " + reg1;
@@ -605,6 +608,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     * f3 -> "]"
     */
     public String visit(ArrayLookup n, Void argu) throws Exception {
+        this.checkForFields = true;
         String arrayExpr = n.f0.accept(this, argu);
         String arrayReg = getExprValue(arrayExpr);
 
@@ -613,7 +617,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         else arrayType = JavaToLLVM(methodCallerType.get(arrayReg));
         
         n.f1.accept(this, argu);
-        this.checkForFields = true;
+        
         String indexExpr = n.f2.accept(this, argu);
         this.checkForFields = false;
         String indexReg = getExprValue(indexExpr);
@@ -632,6 +636,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         String oob3 = newOobLabel();
         
         //int array
+        System.out.println("Requested access to " + arrayType + " array: " + arrayExpr);
         if (arrayType.equals("i32*")){
             emit("\n\t" + reg1 + " = getelementptr i8, i8* %this, i32 8\n");
             emit("\t" + reg2 + " = bitcast i8* " + reg1 + " to i32**\n");
@@ -642,8 +647,8 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
             emit("\tbr i1 " + reg5 + ", label %" + oob1 + ", label %" + oob2 + "\n");
 
             emit("\n" + oob1 + ":\n");
-            emit("\t" + reg6 + " = add " + indexReg + ", 1\n");
-            emit("\t" + reg7 + " = getelementptr i32, i32* " + reg3 + ", " + reg6 + "\n");
+            emit("\t" + reg6 + " = add i32 " + indexReg + ", 1\n");
+            emit("\t" + reg7 + " = getelementptr i32, i32* " + reg3 + ", i32 " + reg6 + "\n");
             emit("\t" + reg8 + " = load i32, i32* " + reg7 + "\n");
             emit("\tbr label %" + oob3 + "\n");
 
@@ -655,7 +660,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         }
         //bool array
         else{
-
+            emit("TODO: BOOL ARRAY ACCESS");
         }
         
         return "i32* " + reg8;
@@ -785,6 +790,10 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     }
 
     String JavaToLLVM(String type){
+        if (type.startsWith("i32")
+            | type.startsWith("i8")
+            | type.startsWith("i1"))
+            return type;
         switch(type){
             case "boolean": return "i1";
             case "int": return "i32";
