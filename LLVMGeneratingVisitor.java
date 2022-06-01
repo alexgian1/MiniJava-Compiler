@@ -71,7 +71,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         switch(type){
             case "boolean": return "i1";
             case "int": return "i32";
-            case "boolean[]": return "i1*";
+            case "boolean[]": return "i32*";
             case "int[]": return "i32*";
             default: return "i8*";
         }
@@ -468,12 +468,12 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         String reg2 = newTemp();
         emit("\t" + reg2 + " = add i32 " + getExprValue(expr) + ", 1\n");
         String reg3 = newTemp();
-        emit("\t" + reg3 + " = call i8* @calloc(i32 1, i32 " + reg2 + ")\n");
+        emit("\t" + reg3 + " = call i8* @calloc(i32 4, i32 " + reg2 + ")\n");
         String reg4 = newTemp();
         emit("\t" + reg4 + " = bitcast i8* " + reg3 + " to i32*\n");
-        emit("\tstore " + getExprValue(expr) + ", i32* " + reg4 + "\n");
+        emit("\tstore i32 " + getExprValue(expr) + ", i32* " + reg4 + "\n");
 
-        return "i1* " + reg4;
+        return "i32* " + reg4;
     }
 
     /**
@@ -928,6 +928,24 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     }
 
     //TODO: Add array assignment
+
+
     //TODO: Add array length
+    /**
+    * f0 -> PrimaryExpression()
+    * f1 -> "."
+    * f2 -> "length"
+    */
+    public String visit(ArrayLength n, Void argu) throws Exception {
+        String expr = n.f0.accept(this, argu);
+        String reg1 = newTemp();
+        System.out.println("Requested length of array: " + expr);
+        n.f1.accept(this, argu);
+        n.f2.accept(this, argu);
+        emit("\t" + reg1 + " = load i32, i32* " + getExprValue(expr));
+        return "i32 " + reg1 ; // +reg
+    }
+
+    
     
 }

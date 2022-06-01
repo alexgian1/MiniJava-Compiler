@@ -1,19 +1,15 @@
 class Example {
     public static void main(String[] args) {
+        System.out.println(new A().foo());
     }
 }
 
 class A {
-    int i;
-    A a;
+    int[] i;
 
-    public int foo(int a, int b, int c) { return a+b; }
-    public int bar(){ return 1; }
+    public int foo() {
+        i = new int[4];
+        return i.length; 
+    }
 }
 
-class B{
-    int i;
-
-    public int foo(int i, int j, int a) { return i+j; }
-    public int foobar(boolean k){ return 1; }
-}
