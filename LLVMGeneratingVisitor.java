@@ -26,6 +26,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     int oobCount = 0;
     int loopCount = 0;
     int arrCount = 0;
+    int andCount = 0;
 
     boolean isInMethod, keepJavaType, checkForFields, returnArguments = false;
     
@@ -45,6 +46,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     String newOobLabel() { return "oob" + oobCount++; }
     String newLoopLabel() { return "loop" + loopCount++; }
     String newArrAllocLabel() { return "arr_alloc" + arrCount++; }
+    String newAndLabel() { return "andclause" + andCount++; }
     void resetRegisters() { this.registerCount = 0; }
 
     String getExprType(String expr) {
@@ -344,6 +346,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         emit(")\n");
         System.out.println("Called " + methodName + " with arguments: " + argList);        
         System.out.println("Returning: " + methodReturnType + " " + reg7);
+        this.methodCallerType.put(reg7, methodReturnType);
         return methodReturnType + " " + reg7;
     }
 
@@ -358,7 +361,9 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     *       | BracketExpression()
     */
     public String visit(PrimaryExpression n, Void argu) throws Exception {
+        if (this.curClassSymbolTable != null) this.checkForFields = true; //TODO: check if this is a problem
         String expr = n.f0.accept(this, argu);
+        this.checkForFields = false;
         if (expr.equals("%this"))
             return "i8* %this";
         if (expr.equals("true"))
@@ -553,10 +558,12 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     */
     public String visit(NotExpression n, Void argu) throws Exception {
         n.f0.accept(this, argu);
+        checkForFields = true;
         String expr = n.f1.accept(this, argu);
+        checkForFields = false;
         String value = getExprValue(expr);
         String reg1 = newTemp();
-        emit("\t" + reg1 + " = xor i1 1, " + value);
+        emit("\t" + reg1 + " = xor i1 1, " + value + "\n");
         return "i1 " + reg1;
     }
 
@@ -566,12 +573,32 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     * f2 -> Clause()
     */
     public String visit(AndExpression n, Void argu) throws Exception {
-        //TODO: Add and expression
-        n.f0.accept(this, argu);
+        String and1 = newAndLabel();
+        String and2 = newAndLabel();
+        String and3 = newAndLabel();
+        String and4 = newAndLabel();
+        String reg1 = newTemp();
+
+        this.checkForFields = true;
+        String expr1 = n.f0.accept(this, argu);
         n.f1.accept(this, argu);
-        n.f2.accept(this, argu);
-        throw new Exception("TODO: AND_EXPRESSION");
-        //return "i1 ";
+        emit("\tbr label %" + and1 + "\n");
+
+        emit("\n" + and1 + ":\n");
+        emit("\tbr i1 " + getExprValue(expr1) + ", label %" + and2 + ", label %" + and4 + "\n");
+
+        emit("\n" + and2 + ":\n");
+        String expr2 = n.f2.accept(this, argu);
+        this.checkForFields = false;
+        emit("\tbr label %" + and3 + "\n");
+
+        emit("\n" + and3 + ":\n");
+        emit("\tbr label %" + and4 + "\n");
+
+        emit("\n" + and4 + ":\n");
+        emit("\t" + reg1 + " = phi i1 [ 0, %" + and1 + " ], [ " + getExprValue(expr2) + ", %" + and3 + " ]\n");
+        
+        return "i1 " + reg1;
     }
 
     /**
@@ -806,8 +833,10 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     */
     public String visit(Identifier n, Void argu) throws Exception {
         String identifier = n.f0.toString();
+        System.out.println("READ: " + identifier);
 
         if (checkForFields){
+            System.out.println("Checking if " + identifier + " is a field/localvar");
             if (curMethodSymbolTable.hasLocalVariable(identifier)){
                 String varType = curMethodSymbolTable.getIdentifierType(identifier, curClassSymbolTable, symbolTable);
                 String varTypeLLVM = JavaToLLVM(varType);
@@ -825,6 +854,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
                 emit("\t" + reg1 + " = getelementptr i8, i8* %this, i32 " + fieldOffset + "\n");
                 emit("\t" + reg2 + " = bitcast i8* " + reg1 + " to " + fieldType + "*\n");
                 emit("\t" + reg3 + " = load " + fieldType + ", " + fieldType + "* " + reg2 + "\n");
+                this.methodCallerType.put(reg1, fieldType);
                 return fieldType + " " + reg3;
             }
         }
@@ -847,7 +877,9 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         String if1 = newIfLabel();
         String if2 = newIfLabel();
         String if3 = newIfLabel();
+        this.checkForFields = true;
         String expr = n.f2.accept(this, argu);
+        this.checkForFields = false;
         n.f3.accept(this, argu);
         System.out.println("if expression with: " + expr);
         emit("\n\tbr i1 " + getExprValue(expr) + ", label %" + if1 + ", label %" + if2 + "\n");
@@ -896,5 +928,6 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     }
 
     //TODO: Add array assignment
+    //TODO: Add array length
     
 }
