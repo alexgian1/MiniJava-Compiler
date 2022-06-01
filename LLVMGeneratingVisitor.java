@@ -783,17 +783,32 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     * f3 -> ";"
     */
     public String visit(AssignmentStatement n, Void argu) throws Exception {
+        //if (this.curMethodSymbolTable != null) this.checkForFields = true;
         String identifier = n.f0.accept(this, argu);
+        //this.checkForFields = false;
         String identifierType = JavaToLLVM(curMethodSymbolTable.getIdentifierType(identifier, curClassSymbolTable, symbolTable));
-        if (this.curClassSymbolTable.hasField(identifier)){
-            int fieldOffset = this.curClassSymbolTable.getFieldOffset(identifier) + 8;
-            System.out.println("----------------------Found field assignment: " + identifier + " with offset " + fieldOffset);
+        
+        //Search class and parents for field
+        ClassSymbolTable tempClassSymbolTable = this.curClassSymbolTable;
+        while(true){
+            if (tempClassSymbolTable.hasField(identifier)){
+                int fieldOffset = tempClassSymbolTable.getFieldOffset(identifier) + 8;
+                System.out.println("----------------------Found field assignment: " + identifier + " with offset " + fieldOffset);
 
-            String reg1 = newTemp();
-            String reg2 = newTemp();
-            emit("\n\t" + reg1 + " = getelementptr i8, i8* %this, i32 " + fieldOffset + "\n");
-            emit("\t" + reg2 + " = bitcast i8* " + reg1 + " to " + identifierType + "*\n");
-            identifier = reg2.replace("%", "");
+                String reg1 = newTemp();
+                String reg2 = newTemp();
+                emit("\n\t" + reg1 + " = getelementptr i8, i8* %this, i32 " + fieldOffset + "\n");
+                emit("\t" + reg2 + " = bitcast i8* " + reg1 + " to " + identifierType + "*\n");
+                identifier = reg2.replace("%", "");
+            }
+        
+            String parentClassName = tempClassSymbolTable.getParentName();
+            if (parentClassName == null) {
+                break;
+            }
+            else{
+                tempClassSymbolTable = this.symbolTable.getClassSymbolTable(parentClassName);
+            }
         }
         n.f1.accept(this, argu);
         checkForFields = true;
@@ -888,17 +903,29 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
                 emit("\t" + reg1 + " = load " + varTypeLLVM + ", " + varTypeLLVM + "* %" + identifier + "\n");
                 return varTypeLLVM + " " + reg1;
             }
-            else if (curClassSymbolTable.hasField(identifier)){
-                int fieldOffset = curClassSymbolTable.getFieldOffset(identifier) + 8;
-                String fieldType = JavaToLLVM(curClassSymbolTable.getFieldType(identifier));
-                String reg1 = newTemp();
-                String reg2 = newTemp();
-                String reg3 = newTemp();
-                emit("\t" + reg1 + " = getelementptr i8, i8* %this, i32 " + fieldOffset + "\n");
-                emit("\t" + reg2 + " = bitcast i8* " + reg1 + " to " + fieldType + "*\n");
-                emit("\t" + reg3 + " = load " + fieldType + ", " + fieldType + "* " + reg2 + "\n");
-                this.methodCallerType.put(reg1, fieldType);
-                return fieldType + " " + reg3;
+            else{ //check class and parents for field
+                ClassSymbolTable tempClassSymbolTable = this.curClassSymbolTable;
+                while(true){
+                    if (tempClassSymbolTable.hasField(identifier)){
+                        int fieldOffset = tempClassSymbolTable.getFieldOffset(identifier) + 8;
+                        String fieldType = JavaToLLVM(tempClassSymbolTable.getFieldType(identifier));
+                        String reg1 = newTemp();
+                        String reg2 = newTemp();
+                        String reg3 = newTemp();
+                        emit("\t" + reg1 + " = getelementptr i8, i8* %this, i32 " + fieldOffset + "\n");
+                        emit("\t" + reg2 + " = bitcast i8* " + reg1 + " to " + fieldType + "*\n");
+                        emit("\t" + reg3 + " = load " + fieldType + ", " + fieldType + "* " + reg2 + "\n");
+                        this.methodCallerType.put(reg1, fieldType);
+                        return fieldType + " " + reg3;
+                    }
+                    String parentClassName = tempClassSymbolTable.getParentName();
+                    if (parentClassName == null){
+                        break;
+                    }
+                    else{
+                        tempClassSymbolTable = this.symbolTable.getClassSymbolTable(parentClassName);
+                    }
+                }
             }
         }
 
