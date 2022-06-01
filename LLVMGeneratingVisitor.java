@@ -1,14 +1,16 @@
 import java.io.PrintWriter;
+import java.util.Enumeration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
-
 
 import SymbolTables.ClassSymbolTable;
 import SymbolTables.GlobalSymbolTable;
 import SymbolTables.MethodSymbolTable;
 import VTables.VTable;
 import syntaxtree.*;
+import syntaxtree.NodeListOptional;
+import syntaxtree.Node;
 import visitor.*;
 
 public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
@@ -53,10 +55,24 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     }
     
     String getExprValue(String expr) { 
-        if (expr.split(" ").length == 2)
-            return expr.split(" ")[1]; 
-        else
+        if (expr.split(" ").length == 3)
             return expr.split(" ")[2]; 
+        else
+            return expr.split(" ")[1]; 
+    }
+
+    String JavaToLLVM(String type){
+        if (type.startsWith("i32")
+            | type.startsWith("i8")
+            | type.startsWith("i1"))
+            return type;
+        switch(type){
+            case "boolean": return "i1";
+            case "int": return "i32";
+            case "boolean[]": return "i1*";
+            case "int[]": return "i32*";
+            default: return "i8*";
+        }
     }
 
     void defineVTable() throws Exception{
@@ -327,6 +343,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
             emit (", " + argList);
         emit(")\n");
         System.out.println("Called " + methodName + " with arguments: " + argList);        
+        System.out.println("Returning: " + methodReturnType + " " + reg7);
         return methodReturnType + " " + reg7;
     }
 
@@ -391,12 +408,28 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     * f1 -> ExpressionTail()
     */
     public String visit(ExpressionList n, Void argu) throws Exception {
+        System.out.println("---READING EXPRESSION LIST");
         String expr1 = n.f0.accept(this, argu);
+        System.out.println(expr1);
         String expr2 = n.f1.accept(this, argu);
+        System.out.println(expr2);
         expr1 = JavaToLLVM(getExprType(expr1)) + " " + getExprValue(expr1);
         String ret = expr1 + expr2;
         ret = ret.replace(", null", "");
         ret = ret.replace("null", "");
+        System.out.println("------------------------------");
+        return ret;
+    }
+
+    /**
+    * f0 -> ( ExpressionTerm() )*
+    */
+    public String visit(ExpressionTail n, Void argu) throws Exception {
+        NodeListOptional nodeList = n.f0;
+        String ret = "";
+        for (int i=0; i<nodeList.size(); i++)
+            ret += nodeList.elementAt(i).accept(this, argu); 
+        
         return ret;
     }
 
@@ -532,7 +565,8 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         n.f0.accept(this, argu);
         n.f1.accept(this, argu);
         n.f2.accept(this, argu);
-        return "i1 ";
+        throw new Exception("TODO: AND_EXPRESSION");
+        //return "i1 ";
     }
 
     /**
@@ -706,10 +740,14 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     public String visit(PrintStatement n, Void argu) throws Exception {
         n.f0.accept(this, argu);
         n.f1.accept(this, argu);
+        
         String expr = n.f2.accept(this, argu);
+        String exprValue = getExprValue(expr);
+        exprValue = varToReg(exprValue, "i32");
+        
         n.f3.accept(this, argu);
         n.f4.accept(this, argu);
-        emit("\n\tcall void (i32) @print_int(i32 " + getExprValue(expr) + ")\n");
+        emit("\n\tcall void (i32) @print_int(i32 " + exprValue + ")\n");
         return null;
     }
 
@@ -789,17 +827,37 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         return identifier;
     }
 
-    String JavaToLLVM(String type){
-        if (type.startsWith("i32")
-            | type.startsWith("i8")
-            | type.startsWith("i1"))
-            return type;
-        switch(type){
-            case "boolean": return "i1";
-            case "int": return "i32";
-            case "boolean[]": return "i1*";
-            case "int[]": return "i32*";
-            default: return "i8*";
-        }
+    /**
+    * f0 -> "if"
+    * f1 -> "("
+    * f2 -> Expression()
+    * f3 -> ")"
+    * f4 -> Statement()
+    * f5 -> "else"
+    * f6 -> Statement()
+    */
+    public String visit(IfStatement n, Void argu) throws Exception {
+        n.f0.accept(this, argu);
+        n.f1.accept(this, argu);
+        String if1 = newIfLabel();
+        String if2 = newIfLabel();
+        String if3 = newIfLabel();
+        String expr = n.f2.accept(this, argu);
+        n.f3.accept(this, argu);
+        System.out.println("if expression with: " + expr);
+        emit("\n\tbr i1 " + getExprValue(expr) + ", label %" + if1 + ", label %" + if2 + "\n");
+        
+        emit("\n" + if1 + ":\n");
+        n.f4.accept(this, argu);
+        emit("\n\tbr label %" + if3 + "\n");
+        
+        emit("\n" + if2 + ":\n");
+        n.f5.accept(this, argu);
+        n.f6.accept(this, argu);
+        emit("\n\tbr label %" + if3 + "\n");
+
+        emit("\n" + if3 + ":\n");
+        return null;
     }
+    
 }
