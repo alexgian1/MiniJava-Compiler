@@ -562,6 +562,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     * f2 -> Clause()
     */
     public String visit(AndExpression n, Void argu) throws Exception {
+        //TODO: Add and expression
         n.f0.accept(this, argu);
         n.f1.accept(this, argu);
         n.f2.accept(this, argu);
@@ -694,6 +695,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         }
         //bool array
         else{
+            //TODO: Add boolean array lookup
             emit("TODO: BOOL ARRAY ACCESS");
         }
         
@@ -802,7 +804,6 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         String identifier = n.f0.toString();
 
         if (checkForFields){
-            //TODO: Check for local variables/parameters
             if (curMethodSymbolTable.hasLocalVariable(identifier)){
                 String varType = curMethodSymbolTable.getIdentifierType(identifier, curClassSymbolTable, symbolTable);
                 String varTypeLLVM = JavaToLLVM(varType);
@@ -857,6 +858,36 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         emit("\n\tbr label %" + if3 + "\n");
 
         emit("\n" + if3 + ":\n");
+        return null;
+    }
+
+    /**
+    * f0 -> "while"
+    * f1 -> "("
+    * f2 -> Expression()
+    * f3 -> ")"
+    * f4 -> Statement()
+    */
+    public String visit(WhileStatement n, Void argu) throws Exception {
+        n.f0.accept(this, argu);
+        n.f1.accept(this, argu);
+        
+        String loop1 = newLoopLabel();
+        String loop2 = newLoopLabel();
+        String loop3 = newLoopLabel();
+        emit("\n\tbr label %" + loop1 + "\n");
+
+        emit("\n" + loop1 + ":\n");
+        String expr = n.f2.accept(this, argu);
+        n.f3.accept(this, argu);
+
+        emit("\tbr i1 " + getExprValue(expr) + ", label %" + loop2 + ", label %" + loop3 + "\n");
+
+        emit("\n" + loop2 + ":\n");
+        n.f4.accept(this, argu);
+        emit("\n\tbr label %" + loop1 + "\n");
+        
+        emit("\n" + loop3 + ":\n");
         return null;
     }
     
