@@ -444,7 +444,9 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         n.f0.accept(this, argu);
         n.f1.accept(this, argu);
         n.f2.accept(this, argu);
+        checkForFields = true;
         String expr = n.f3.accept(this, argu);
+        checkForFields = false;
         n.f4.accept(this, argu);
 
         String reg1 = newTemp();
@@ -480,7 +482,9 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         n.f0.accept(this, argu);
         n.f1.accept(this, argu);
         n.f2.accept(this, argu);
+        checkForFields = true;
         String expr = n.f3.accept(this, argu);
+        checkForFields = false;
         n.f4.accept(this, argu);
 
         String reg1 = newTemp();
@@ -712,7 +716,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         String identifier = n.f0.accept(this, argu);
         String identifierType = JavaToLLVM(curMethodSymbolTable.getIdentifierType(identifier, curClassSymbolTable, symbolTable));
         if (this.curClassSymbolTable.hasField(identifier)){
-            int fieldOffset = this.curClassSymbolTable.getFieldOffset(identifier);
+            int fieldOffset = this.curClassSymbolTable.getFieldOffset(identifier) + 8;
             System.out.println("----------------------Found field assignment: " + identifier + " with offset " + fieldOffset);
 
             String reg1 = newTemp();
@@ -890,5 +894,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         emit("\n" + loop3 + ":\n");
         return null;
     }
+
+    //TODO: Add array assignment
     
 }
