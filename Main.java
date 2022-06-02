@@ -31,13 +31,13 @@ public class Main {
                     TypeCheckVisitor eval2 = new TypeCheckVisitor(globalSymbolTable);
                     root.accept(eval2, null);
                     System.out.println("Type check success.");
-                    writer.println("Success: " + args[i]);
 
                     globalSymbolTable.calculateOffsets();
                     PrintWriter llvmWriter = new PrintWriter(args[i].substring(0, args[i].length()-5) + ".ll");
                     LLVMGeneratingVisitor codeGen = new LLVMGeneratingVisitor(globalSymbolTable, llvmWriter);
                     root.accept(codeGen, null);
                     llvmWriter.close();
+                    writer.println("Success: " + args[i]);
             }
             catch(FileNotFoundException ex){
                 System.err.println(ex.getMessage());

@@ -109,8 +109,8 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         if(!reg.matches("\\d+") && !reg.startsWith("%_")){
             reg = newTemp();
             emit("\t" + reg + " = load " + type + ", " + type + "* " + variable + "\n");
+            this.methodCallerType.put(reg, type);
         }
-        this.methodCallerType.put(variable, type);
         return reg;
     }
 
@@ -150,8 +150,10 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     n.f11.accept(this, argu);
     n.f12.accept(this, argu);
     n.f13.accept(this, argu);
+    this.isInMethod = true;
     n.f14.accept(this, argu);
     n.f15.accept(this, argu);
+    this.isInMethod = false;
     emit("\n\tret i32 0\n");
     n.f16.accept(this, argu);
     emit("}\n\n");
@@ -297,16 +299,31 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         if (curClassSymbolTable != null) this.checkForFields = true;
         String expr = n.f0.accept(this, argu);
         this.checkForFields = false;
+
         String objectReg = getExprValue(expr);
         String objectType = this.methodCallerType.get(objectReg);
-        if (objectType == null)
+        if (objectType == null){
             objectType = getExprType(expr).replace("%", "");
-        if (expr.equals("i8* %this"))
+        }
+        if (expr.equals("i8* %this")){
             objectType = curClassSymbolTable.getClassName();
+        }
+
+        if (this.curClassSymbolTable == null){  //If in main class
+            objectReg = varToReg(objectReg, JavaToLLVM(objectType));
+        }
 
         n.f1.accept(this, argu);
         String methodName = n.f2.accept(this, argu);
-        MethodSymbolTable methodSymbolTable = symbolTable.getClassSymbolTable(objectType).getMethodSymbolTable(methodName);
+
+        //Search parent classes in case method does not exist
+        ClassSymbolTable tempClassSymbolTable = symbolTable.getClassSymbolTable(objectType);
+        while (!tempClassSymbolTable.hasMethod(methodName)){
+            String tempParentClassName = tempClassSymbolTable.getParentName();
+            tempClassSymbolTable = symbolTable.getClassSymbolTable(tempParentClassName);
+        }
+
+        MethodSymbolTable methodSymbolTable = tempClassSymbolTable.getMethodSymbolTable(methodName);
         int methodOffset = methodSymbolTable.getOffset()/8;
         String methodReturnType = methodSymbolTable.getReturnType();
         String llvmReturnType = JavaToLLVM(methodReturnType);
@@ -783,31 +800,43 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     * f3 -> ";"
     */
     public String visit(AssignmentStatement n, Void argu) throws Exception {
-        //if (this.curMethodSymbolTable != null) this.checkForFields = true;
+        if (this.curClassSymbolTable == null) this.checkForFields = true;
         String identifier = n.f0.accept(this, argu);
-        //this.checkForFields = false;
-        String identifierType = JavaToLLVM(curMethodSymbolTable.getIdentifierType(identifier, curClassSymbolTable, symbolTable));
-        
-        //Search class and parents for field
-        ClassSymbolTable tempClassSymbolTable = this.curClassSymbolTable;
-        while(true){
-            if (tempClassSymbolTable.hasField(identifier)){
-                int fieldOffset = tempClassSymbolTable.getFieldOffset(identifier) + 8;
-                System.out.println("----------------------Found field assignment: " + identifier + " with offset " + fieldOffset);
+        System.out.println("Assigning to: " + identifier);
+        if (this.curClassSymbolTable == null) this.checkForFields = false;
 
-                String reg1 = newTemp();
-                String reg2 = newTemp();
-                emit("\n\t" + reg1 + " = getelementptr i8, i8* %this, i32 " + fieldOffset + "\n");
-                emit("\t" + reg2 + " = bitcast i8* " + reg1 + " to " + identifierType + "*\n");
-                identifier = reg2.replace("%", "");
-            }
-        
-            String parentClassName = tempClassSymbolTable.getParentName();
-            if (parentClassName == null) {
-                break;
-            }
-            else{
-                tempClassSymbolTable = this.symbolTable.getClassSymbolTable(parentClassName);
+        String identifierType;
+        if (this.curClassSymbolTable == null){
+            System.out.println("In main class -> searching type of " + identifier);
+            identifierType = JavaToLLVM(methodCallerType.get("%" + identifier));
+            System.out.println("Found type: " + identifierType);
+        }
+        else{
+            identifierType = JavaToLLVM(curMethodSymbolTable.getIdentifierType(identifier, curClassSymbolTable, symbolTable)); 
+        }
+
+        if (this.curClassSymbolTable != null){
+            //Search class and parents for field
+            ClassSymbolTable tempClassSymbolTable = this.curClassSymbolTable;
+            while(true){
+                if (tempClassSymbolTable.hasField(identifier)){
+                    int fieldOffset = tempClassSymbolTable.getFieldOffset(identifier) + 8;
+                    System.out.println("----------------------Found field assignment: " + identifier + " with offset " + fieldOffset);
+
+                    String reg1 = newTemp();
+                    String reg2 = newTemp();
+                    emit("\n\t" + reg1 + " = getelementptr i8, i8* %this, i32 " + fieldOffset + "\n");
+                    emit("\t" + reg2 + " = bitcast i8* " + reg1 + " to " + identifierType + "*\n");
+                    identifier = reg2.replace("%", "");
+                }
+            
+                String parentClassName = tempClassSymbolTable.getParentName();
+                if (parentClassName == null) {
+                    break;
+                }
+                else{
+                    tempClassSymbolTable = this.symbolTable.getClassSymbolTable(parentClassName);
+                }
             }
         }
         n.f1.accept(this, argu);
@@ -893,7 +922,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         String identifier = n.f0.toString();
         System.out.println("READ: " + identifier);
 
-        if (checkForFields){
+        if (checkForFields && this.curClassSymbolTable != null){
             System.out.println("Checking if " + identifier + " is a field/localvar");
             if (curMethodSymbolTable.hasLocalVariable(identifier)){
                 String varType = curMethodSymbolTable.getIdentifierType(identifier, curClassSymbolTable, symbolTable);
