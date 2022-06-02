@@ -39,10 +39,27 @@ public class ClassSymbolTable {
 
     public int getClassSize(){ return fieldsOffset + 8; }
 
-    public int getNumMethods() { return this.methodsTable.size(); }
+    public int getNumMethods(GlobalSymbolTable globalSymbolTable) throws Exception { 
+        return this.getAllMethodsTable(globalSymbolTable).size(); 
+    }
 
     public Map<String, String>  getFieldsTable() { return this.fieldsTable; }
     public Map<String, MethodSymbolTable>  getMethodsTable() { return this.methodsTable; }
+
+    public Map<String, MethodSymbolTable>  getAllMethodsTable(GlobalSymbolTable globalSymbolTable) throws Exception {
+        Map<String, MethodSymbolTable> allMethodsTable = new LinkedHashMap<String, MethodSymbolTable>();
+        String curClassName = this.getClassName();
+        while (curClassName != null){
+            ClassSymbolTable curClassSymbolTable = globalSymbolTable.getClassSymbolTable(curClassName);
+            Map<String, MethodSymbolTable> curClassMethods = curClassSymbolTable.getMethodsTable();
+            Set<String> methodNames = curClassMethods.keySet();
+            for(String methodName : methodNames){
+                allMethodsTable.put(methodName, curClassMethods.get(methodName));
+            }
+            curClassName = curClassSymbolTable.getParentName();
+        }
+        return allMethodsTable; 
+    }
 
     public void addField(String fieldName, String type) throws Exception {
         if (this.fieldsTable.containsKey(fieldName))
@@ -56,7 +73,7 @@ public class ClassSymbolTable {
             throw new Exception("Duplicate method '" + methodName + "' in class '" + className + "'");
         }
 
-        MethodSymbolTable st = new MethodSymbolTable(methodName, returnType);
+        MethodSymbolTable st = new MethodSymbolTable(this.className, methodName, returnType);
         methodsTable.put(methodName, st);
     }
 

@@ -322,6 +322,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
             String tempParentClassName = tempClassSymbolTable.getParentName();
             tempClassSymbolTable = symbolTable.getClassSymbolTable(tempParentClassName);
         }
+        System.out.println("Method " + methodName + " found in class " + tempClassSymbolTable.getClassName());
 
         MethodSymbolTable methodSymbolTable = tempClassSymbolTable.getMethodSymbolTable(methodName);
         int methodOffset = methodSymbolTable.getOffset()/8;
@@ -548,7 +549,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         String reg3 = newTemp();
         
         int classSize = symbolTable.getClassSymbolTable(className).getClassSize();
-        int numMethods = symbolTable.getClassSymbolTable(className).getNumMethods();
+        int numMethods = symbolTable.getClassSymbolTable(className).getNumMethods(symbolTable);
         emit("\t" + reg1 + " = call i8* @calloc(i32 1, i32 " + classSize + ")\n");
         emit("\t" + reg2 + " = bitcast i8* " + reg1 + " to i8***\n");
         emit("\t" + reg3 + " = getelementptr [" + numMethods + " x i8*], [" + numMethods + " x i8*]* @." + className + "_vtable, i32 0, i32 0\n");

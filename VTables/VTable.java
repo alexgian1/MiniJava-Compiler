@@ -24,11 +24,12 @@ public class VTable {
                 continue;
             }
             ClassSymbolTable classSymbolTable = this.symbolTable.getClassSymbolTable(className);
-            Set<String> methods = classSymbolTable.getMethodsTable().keySet();
+            Map<String, MethodSymbolTable> methodSymbolTables = classSymbolTable.getAllMethodsTable(this.symbolTable);
+            Set<String> methods = methodSymbolTables.keySet();
             buffer += "@." + className + "_vtable = global [" + methods.size() + " x i8*] [";
             int methodIndex = 0;
             for (String methodName : methods){
-                MethodSymbolTable methodSymbolTable = classSymbolTable.getMethodSymbolTable(methodName);
+                MethodSymbolTable methodSymbolTable = methodSymbolTables.get(methodName);
                 String returnType = methodSymbolTable.getReturnType();
                 buffer += "i8* bitcast (" + JavaToLLVM(returnType) + " (i8*";
                 
@@ -37,7 +38,7 @@ public class VTable {
                 for (String argument : arguments){
                     buffer += "," + JavaToLLVM(argumentSymbolTable.get(argument));
                 }
-                buffer += ")* @" + className + "." + methodName + " to i8*)";
+                buffer += ")* @" + methodSymbolTable.getClassName() + "." + methodName + " to i8*)";
                 if (++methodIndex < methods.size()) buffer += ", ";
             }
             buffer += "]\n";
