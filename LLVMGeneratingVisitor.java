@@ -841,6 +841,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         n.f1.accept(this, argu);
         checkForFields = true;
         String expr = n.f2.accept(this, argu);
+        expr = getExprType(expr) + " " + varToReg(getExprValue(expr), getExprType(expr));
         checkForFields = false;
         n.f3.accept(this, argu);
         

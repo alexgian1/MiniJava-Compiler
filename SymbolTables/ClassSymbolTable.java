@@ -55,7 +55,7 @@ public class ClassSymbolTable {
             Map<String, MethodSymbolTable> curClassMethods = curClassSymbolTable.getMethodsTable();
             Set<String> methodNames = curClassMethods.keySet();
             for(String methodName : methodNames){
-                allMethodsTable.put(methodName, curClassMethods.get(methodName));
+                allMethodsTable.putIfAbsent(methodName, curClassMethods.get(methodName));
             }
             curClassName = curClassSymbolTable.getParentName();
         }
