@@ -358,6 +358,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
             emit (", " + argList);
         emit(")\n");
         this.methodCallerType.put(reg7, methodReturnType);
+        System.out.println(methodName + " returns " + methodReturnType);
         return methodReturnType + " " + reg7;
     }
 
@@ -795,9 +796,9 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     * f3 -> ";"
     */
     public String visit(AssignmentStatement n, Void argu) throws Exception {
-        if (this.curClassSymbolTable == null) this.checkForFields = true;
+        //if (this.curClassSymbolTable == null) this.checkForFields = true;
         String identifier = n.f0.accept(this, argu);
-        if (this.curClassSymbolTable == null) this.checkForFields = false;
+        //if (this.curClassSymbolTable == null) this.checkForFields = false;
 
         String identifierTypeLLVM;
         String identifierType;
@@ -810,28 +811,39 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         identifierTypeLLVM = JavaToLLVM(identifierType);
 
         if (this.curClassSymbolTable != null){
-            //Search class and parents for field
-            ClassSymbolTable tempClassSymbolTable = this.curClassSymbolTable;
-            while(true){
-                if (tempClassSymbolTable.hasField(identifier)){
-                    int fieldOffset = tempClassSymbolTable.getFieldOffset(identifier) + 8;
+            if (curMethodSymbolTable.hasLocalVariable(identifier)){
+                String varType = curMethodSymbolTable.getIdentifierType(identifier, curClassSymbolTable, symbolTable);
+                String varTypeLLVM = JavaToLLVM(varType);
+                System.out.println("In  " + curMethodSymbolTable.getMethodName() + ": " + identifier + " is a local variable with type " + varType);
+                String reg1 = newTemp();
+                this.methodCallerType.put(reg1, varType);
+                emit("\t" + reg1 + " = load " + varTypeLLVM + ", " + varTypeLLVM + "* %" + identifier + "\n");
+            }
+            else{
+                //Search class and parents for field
+                ClassSymbolTable tempClassSymbolTable = this.curClassSymbolTable;
+                while(true){
+                    if (tempClassSymbolTable.hasField(identifier)){
+                        int fieldOffset = tempClassSymbolTable.getFieldOffset(identifier) + 8;
 
-                    String reg1 = newTemp();
-                    String reg2 = newTemp();
-                    emit("\n\t" + reg1 + " = getelementptr i8, i8* %this, i32 " + fieldOffset + "\n");
-                    emit("\t" + reg2 + " = bitcast i8* " + reg1 + " to " + identifierTypeLLVM + "*\n");
-                    identifier = reg2.replace("%", "");
-                }
-            
-                String parentClassName = tempClassSymbolTable.getParentName();
-                if (parentClassName == null) {
-                    break;
-                }
-                else{
-                    tempClassSymbolTable = this.symbolTable.getClassSymbolTable(parentClassName);
+                        String reg1 = newTemp();
+                        String reg2 = newTemp();
+                        emit("\n\t" + reg1 + " = getelementptr i8, i8* %this, i32 " + fieldOffset + "\n");
+                        emit("\t" + reg2 + " = bitcast i8* " + reg1 + " to " + identifierTypeLLVM + "*\n");
+                        identifier = reg2.replace("%", "");
+                    }
+                
+                    String parentClassName = tempClassSymbolTable.getParentName();
+                    if (parentClassName == null) {
+                        break;
+                    }
+                    else{
+                        tempClassSymbolTable = this.symbolTable.getClassSymbolTable(parentClassName);
+                    }
                 }
             }
         }
+        
         n.f1.accept(this, argu);
         checkForFields = true;
         String expr = n.f2.accept(this, argu);
@@ -920,6 +932,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
             if (curMethodSymbolTable.hasLocalVariable(identifier)){
                 String varType = curMethodSymbolTable.getIdentifierType(identifier, curClassSymbolTable, symbolTable);
                 String varTypeLLVM = JavaToLLVM(varType);
+                System.out.println("In  " + curMethodSymbolTable.getMethodName() + ": " + identifier + " is a local variable with type " + varType);
                 String reg1 = newTemp();
                 this.methodCallerType.put(reg1, varType);
                 emit("\t" + reg1 + " = load " + varTypeLLVM + ", " + varTypeLLVM + "* %" + identifier + "\n");
@@ -931,6 +944,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
                     if (tempClassSymbolTable.hasField(identifier)){
                         int fieldOffset = tempClassSymbolTable.getFieldOffset(identifier) + 8;
                         String fieldType = tempClassSymbolTable.getFieldType(identifier);
+                        System.out.println("In  " + curMethodSymbolTable.getMethodName() + ": " + identifier + " is a field with type " + fieldType);
                         String fieldTypeLLVM = JavaToLLVM(fieldType);
                         String reg1 = newTemp();
                         String reg2 = newTemp();
