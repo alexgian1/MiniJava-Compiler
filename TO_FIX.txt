@@ -1,1 +1,0 @@
--Success: ./minijava-examples-new/minijava-extra/test20.java

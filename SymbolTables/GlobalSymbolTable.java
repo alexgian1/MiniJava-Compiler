@@ -79,10 +79,15 @@ public class GlobalSymbolTable {
             Map<String, MethodSymbolTable> methodsTable = classSymbolTable.getMethodsTable();
             System.out.println("---Methods---");
             for (String methodName : methodsTable.keySet()){
-                if (!classSymbolTable.checkMethodOverwrite(methodsTable.get(methodName), this)){
+                MethodSymbolTable overwrittenMethod = classSymbolTable.checkMethodOverwrite(methodsTable.get(methodName), this);
+                if (overwrittenMethod == null){
                     System.out.println(className + "." + methodName + " : " + classSymbolTable.methodsOffset);
                     methodsTable.get(methodName).setOffset(classSymbolTable.methodsOffset);
                     classSymbolTable.methodsOffset += 8;
+                }
+                else{
+                    //Method overwrites one from the parent -> Save offset but do not print
+                    methodsTable.get(methodName).setOffset(overwrittenMethod.getOffset());
                 }
             }
 

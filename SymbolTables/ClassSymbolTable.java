@@ -78,17 +78,17 @@ public class ClassSymbolTable {
         methodsTable.put(methodName, st);
     }
 
-    public boolean checkMethodOverwrite(MethodSymbolTable methodSymbolTable, GlobalSymbolTable globalSymbolTable) throws Exception{
+    public MethodSymbolTable checkMethodOverwrite(MethodSymbolTable methodSymbolTable, GlobalSymbolTable globalSymbolTable) throws Exception{
         //Check if method overwrites one from a parent class
         String methodName = methodSymbolTable.getMethodName();
         String returnType = methodSymbolTable.getReturnType();
         String curParentName = this.parentName;
-        boolean overwrites = false;
+        MethodSymbolTable overwrittenMethod = null;
         while(curParentName != null){
             ClassSymbolTable parentClassSymbolTable = globalSymbolTable.getClassSymbolTable(curParentName);
             if (parentClassSymbolTable.hasMethod(methodName)){
-                overwrites = true;
                 MethodSymbolTable parentMethodSymbolTable = parentClassSymbolTable.getMethodSymbolTable(methodName);
+                overwrittenMethod = parentMethodSymbolTable;
                 
                 //Check return types
                 if (!parentMethodSymbolTable.getReturnType().equals(returnType))
@@ -113,7 +113,7 @@ public class ClassSymbolTable {
             }
             curParentName = parentClassSymbolTable.getParentName();
         }
-        return overwrites;
+        return overwrittenMethod;
     }
 
     public MethodSymbolTable getMethodSymbolTable(String methodName) throws Exception{
