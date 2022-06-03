@@ -104,7 +104,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
 
     String varToReg(String variable, String type){
         String reg = variable;
-        if(!reg.matches("\\d+") && !reg.startsWith("%_")){
+        if(!reg.matches("\\d+") && !reg.startsWith("%_") && !reg.equals("%this")){
             reg = newTemp();
             emit("\t" + reg + " = load " + type + ", " + type + "* " + variable + "\n");
             this.methodCallerType.put(reg, type);
@@ -434,6 +434,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     */
     public String visit(ExpressionList n, Void argu) throws Exception {
         String expr1 = n.f0.accept(this, argu);
+        expr1 = getExprType(expr1) + " " + varToReg(getExprValue(expr1), getExprType(expr1));
         String expr2 = n.f1.accept(this, argu);
         expr1 = JavaToLLVM(getExprType(expr1)) + " " + getExprValue(expr1);
         String ret = expr1 + expr2;
@@ -448,8 +449,11 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
     public String visit(ExpressionTail n, Void argu) throws Exception {
         NodeListOptional nodeList = n.f0;
         String ret = "";
-        for (int i=0; i<nodeList.size(); i++)
-            ret += nodeList.elementAt(i).accept(this, argu); 
+        for (int i=0; i<nodeList.size(); i++){
+            String expr = nodeList.elementAt(i).accept(this, argu);
+            expr = getExprType(expr) + " " + varToReg(getExprValue(expr), getExprType(expr));
+            ret += ", " + expr;
+        }
         
         return ret;
     }
