@@ -698,9 +698,9 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         String arrayExpr = n.f0.accept(this, argu);
         String arrayReg = getExprValue(arrayExpr);
 
-        String arrayType;
-        if(arrayExpr.startsWith("i")) arrayType = getExprType(arrayExpr);
-        else arrayType = JavaToLLVM(methodCallerType.get(arrayReg));
+        //String arrayType;
+        //if(arrayExpr.startsWith("i")) arrayType = getExprType(arrayExpr);
+        //else arrayType = JavaToLLVM(methodCallerType.get(arrayReg));
         
         n.f1.accept(this, argu);
         
@@ -709,9 +709,6 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         String indexReg = getExprValue(indexExpr);
         n.f3.accept(this, argu);
 
-        String reg1 = newTemp();
-        String reg2 = newTemp();
-        String reg3 = newTemp();
         String reg4 = newTemp();
         String reg5 = newTemp();
         String reg6 = newTemp();
@@ -721,18 +718,15 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         String oob2 = newOobLabel();
         String oob3 = newOobLabel();
         
-        //int array        
-        emit("\n\t" + reg1 + " = getelementptr i8, i8* %this, i32 8\n");
-        emit("\t" + reg2 + " = bitcast i8* " + reg1 + " to i32**\n");
-        emit("\t" + reg3 + " = load i32*, i32** " + reg2 + "\n");
+        //int array  
         indexReg = varToReg(indexReg, "i32");
-        emit("\t" + reg4 + " = load i32, i32* " + reg3 + "\n");
+        emit("\t" + reg4 + " = load i32, i32* " + arrayReg + "\n");
         emit("\t" + reg5 + " = icmp ult i32 " + indexReg + ", " + reg4 + "\n");
         emit("\tbr i1 " + reg5 + ", label %" + oob1 + ", label %" + oob2 + "\n");
 
         emit("\n" + oob1 + ":\n");
         emit("\t" + reg6 + " = add i32 " + indexReg + ", 1\n");
-        emit("\t" + reg7 + " = getelementptr i32, i32* " + reg3 + ", i32 " + reg6 + "\n");
+        emit("\t" + reg7 + " = getelementptr i32, i32* " + arrayReg + ", i32 " + reg6 + "\n");
         emit("\t" + reg8 + " = load i32, i32* " + reg7 + "\n");
         emit("\tbr label %" + oob3 + "\n");
 
@@ -743,7 +737,7 @@ public class LLVMGeneratingVisitor extends GJDepthFirst<String, Void>{
         emit("\n" + oob3 + ":\n");
         
         //TODO: return i1 in case of boolean
-        return "i32* " + reg8;
+        return "i32 " + reg8;
     }
 
     /**
