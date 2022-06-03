@@ -50,6 +50,7 @@ public class ClassSymbolTable {
         Map<String, MethodSymbolTable> allMethodsTable = new LinkedHashMap<String, MethodSymbolTable>();
         String curClassName = this.getClassName();
         while (curClassName != null){
+            if (curClassName == globalSymbolTable.mainClass) break;
             ClassSymbolTable curClassSymbolTable = globalSymbolTable.getClassSymbolTable(curClassName);
             Map<String, MethodSymbolTable> curClassMethods = curClassSymbolTable.getMethodsTable();
             Set<String> methodNames = curClassMethods.keySet();

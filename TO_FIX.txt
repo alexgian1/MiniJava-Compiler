@@ -1,0 +1,7 @@
+-Success: ./minijava-examples-new/minijava-extra/Main.java
+-Success: ./minijava-examples-new/minijava-extra/Example1.java
+-Success: ./minijava-examples-new/minijava-extra/OutOfBounds1.java
+-Success: ./minijava-examples-new/minijava-extra/ArrayTest.java
+-Success: ./minijava-examples-new/minijava-extra/DerivedCall.java
+-Success: ./minijava-examples-new/minijava-extra/Classes.java
+-Success: ./minijava-examples-new/minijava-extra/ShadowField.java
