@@ -8,10 +8,18 @@ A compiler for MiniJava, a subset of Java. MiniJava is designed so that its prog
 - `make test`: Runs the MiniJava compiler in every test file and creates the file `test_results.txt` with the results in the root directory
 - `make clean`: Deletes all files created by `make`
 
-To use the MiniJava compiler manually:
+### To use the MiniJava compiler manually
 ```
 make
-java Main <inputFile1> <inputFile2> ...
+java Main <inputFile1>.java <inputFile2>.java ...
 ```
 
-If the MiniJava compiler type checking is successful, it will print the field and method offsets for each class in the Standard Output.
+### LLVM File Execution 
+Install clang: `sudo apt update && sudo apt install clang`
+```
+clang -o out1 <inputFile1>.ll
+./out1
+```
+
+
+If the MiniJava compiler type checking is successful, it will output the field and method offsets for each class in the Standard Output.
