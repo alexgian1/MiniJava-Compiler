@@ -37,6 +37,7 @@ public class Main {
                     LLVMGeneratingVisitor codeGen = new LLVMGeneratingVisitor(globalSymbolTable, llvmWriter);
                     root.accept(codeGen, null);
                     llvmWriter.close();
+                    System.out.println("LLVM IR generation success.");
                     writer.println("Success: " + args[i]);
             }
             catch(FileNotFoundException ex){
